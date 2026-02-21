@@ -504,6 +504,18 @@
             <button class="scenario-btn" data-scenario="stress_test">
               Stress Test
             </button>
+            <button
+              class="scenario-btn"
+              style="
+                background: #991b1b;
+                color: #f87171;
+                border-color: #991b1b;
+                grid-column: 1/-1;
+              "
+              onclick="sendPersonMissing()"
+            >
+              ⚠ Person Missing
+            </button>
           </div>
         </div>
 
@@ -577,6 +589,39 @@
               <span>No data</span>
             </div>
           </div>
+        </div>
+
+        <!-- ESP32 Band -->
+        <div class="panel-section">
+          <h3>ESP32 Band (Serial)</h3>
+          <div style="display: flex; gap: 6px">
+            <input
+              type="text"
+              id="serialPort"
+              placeholder="COM3"
+              value="COM3"
+              style="
+                flex: 1;
+                padding: 8px 10px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                background: #fff;
+                color: #1a1a2e;
+              "
+            />
+            <button
+              class="ctrl-btn start"
+              onclick="connectSerial()"
+              style="flex: none; padding: 8px 14px; font-size: 0.8rem"
+            >
+              Link
+            </button>
+          </div>
+          <div
+            id="esp32Status"
+            style="font-size: 0.75rem; color: #6b7280; margin-top: 6px"
+          ></div>
         </div>
       </aside>
 
@@ -978,6 +1023,31 @@
           console.error("Server error:", data.message);
           alert("Error: " + data.message);
         });
+
+        // ESP32 config response
+        state.socket.on("esp32_config", (data) => {
+          const el = document.getElementById("esp32Status");
+          if (data.connected) {
+            el.innerHTML =
+              '<span style="color:#10b981">● Connected to ' +
+              data.port +
+              "</span>";
+          } else if (data.error) {
+            el.innerHTML =
+              '<span style="color:#ef4444">● ' + data.error + "</span>";
+          } else {
+            el.innerHTML = '<span style="color:#6b7280">Disconnected</span>';
+          }
+        });
+      }
+
+      function connectSerial() {
+        const port = document.getElementById("serialPort").value.trim();
+        state.socket.emit("set_serial_port", { port });
+      }
+
+      function sendPersonMissing() {
+        state.socket.emit("person_missing");
       }
 
       // =================================================================

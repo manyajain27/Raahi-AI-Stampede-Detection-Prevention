@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ExternalLink, AlertCircle, RefreshCw, X } from 'lucide-react';
 
-type EditorMode = 'indoor' | 'outdoor';
-
 interface EventData {
   capacity?: string;
   venueType?: string;
@@ -20,7 +18,6 @@ const PLANNER_URL = process.env.NEXT_PUBLIC_PLANNER_URL || 'http://localhost:500
 
 export default function FloorPlannerPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<EditorMode>('indoor');
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,9 +44,6 @@ export default function FloorPlannerPage() {
       if (raw) {
         const data = JSON.parse(raw) as EventData;
         setEventData(data);
-        // Auto-select mode based on venue type
-        if (data.venueType === 'outdoor') setMode('outdoor');
-        else if (data.venueType === 'indoor') setMode('indoor');
       }
     } catch { /* ignore parse errors */ }
   }, []);
@@ -104,7 +98,7 @@ export default function FloorPlannerPage() {
     }, 1000);
   }, [eventData, dataSent]);
 
-  const iframeSrc = mode === 'indoor' ? PLANNER_URL : `${PLANNER_URL}/outdoor`;
+  const iframeSrc = PLANNER_URL;
 
   const hasEventContext = eventData && (eventData.capacity || eventData.eventType || eventData.floorPlanImageName);
 
@@ -115,30 +109,6 @@ export default function FloorPlannerPage() {
         <div className="flex items-center gap-5">
           <h2 className="font-display text-[15px] font-semibold text-ink-900 tracking-[-0.02em]">Floor Planner</h2>
 
-          <div className="flex items-center bg-surface-2 rounded-xl p-0.5">
-            <button
-              onClick={() => { setMode('indoor'); setIsLoading(true); setDataSent(false); }}
-              className={cn(
-                'px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-200',
-                mode === 'indoor'
-                  ? 'bg-white text-ink-900 shadow-sm'
-                  : 'text-ink-400 hover:text-ink-600'
-              )}
-            >
-              Indoor
-            </button>
-            <button
-              onClick={() => { setMode('outdoor'); setIsLoading(true); setDataSent(false); }}
-              className={cn(
-                'px-3.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-200',
-                mode === 'outdoor'
-                  ? 'bg-white text-ink-900 shadow-sm'
-                  : 'text-ink-400 hover:text-ink-600'
-              )}
-            >
-              Outdoor
-            </button>
-          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -245,7 +215,7 @@ export default function FloorPlannerPage() {
             key={iframeKey}
             src={iframeSrc}
             className="w-full h-full border-0"
-            title={`${mode} Floor Planner`}
+            title="Floor Planner"
             onLoad={handleIframeLoad}
           />
         )}

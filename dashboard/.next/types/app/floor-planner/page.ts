@@ -1,4 +1,4 @@
-// File: D:\Projects\LOC\reverse_cowboys_OpenInnovation\dashboard\src\app\floor-planner\page.tsx
+// File: C:\Users\ACER\Desktop\K-Hacks\dashboard\src\app\floor-planner\page.tsx
 import * as entry from '../../../../src/app/floor-planner/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

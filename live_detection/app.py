@@ -14,6 +14,12 @@ import threading
 import time
 from collections import defaultdict, deque
 from pathlib import Path
+import math
+
+try:
+    import serial
+except ImportError:
+    serial = None
 
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
@@ -64,6 +70,19 @@ class LiveDetectionManager:
         self.fall_alerts = {}           # tid -> {'x': int, 'y': int, 'time': float}
         self.FALL_MIN_FRAMES = 5        # must be seen at least this many frames before counting as fall
         self.FALL_ALERT_DURATION = 6.0  # seconds to show the fall marker
+
+        # ESP32 band integration (Serial)
+        self.serial_port = None     # e.g. 'COM3'
+        self.serial_conn = None     # pyserial connection
+        self.max_capacity = 30      # max people before density = 1.0
+        self.density = 0.0
+        self.last_esp32_notify = 0
+        self._esp32_notified_falls = set()  # fall tids already sent to ESP32
+
+        # Collision detection
+        self.collisions = []
+        self._collision_history = {}   # key -> {'data': col_dict, 'time': float}
+        self.COLLISION_PERSIST_DURATION = 3.0  # seconds to keep collision visible
 
     def load_venue(self, yaml_path: str):
         """Load venue YAML and draw the base map image."""
@@ -185,6 +204,133 @@ class LiveDetectionManager:
         if self.thread:
             self.thread.join(timeout=3)
 
+    # ─── Vector-based Collision Detection ────────────────────────────
+
+    def _compute_velocities(self):
+        """Compute velocity vectors from position history."""
+        velocities = {}
+        for tid, history in self.track_history.items():
+            if len(history) >= 4:
+                old_x, old_y = history[-4]
+                new_x, new_y = history[-1]
+                vx = (new_x - old_x) / 4.0
+                vy = (new_y - old_y) / 4.0
+                if abs(vx) > 0.5 or abs(vy) > 0.5:
+                    velocities[tid] = (vx, vy)
+        return velocities
+
+    def _detect_collisions(self, velocities):
+        """
+        Detect collision risks using vector dot product and cross product.
+
+        For persons A and B with velocities Va, Vb at positions Pa, Pb:
+          D   = Pb - Pa            (relative displacement)
+          Vr  = Va - Vb            (relative velocity)
+          dot(Vr, D) > 0           means approaching each other
+          t   = dot(Vr, D)/|Vr|^2  time of closest approach (frames)
+          cross(Va, Vb)            sign tells passing side
+        """
+        collisions = []
+        tids = list(velocities.keys())
+
+        for i in range(len(tids)):
+            for j in range(i + 1, len(tids)):
+                tid_a, tid_b = tids[i], tids[j]
+                pos_a = self.last_map_pos.get(tid_a)
+                pos_b = self.last_map_pos.get(tid_b)
+                if not pos_a or not pos_b:
+                    continue
+
+                vel_a = velocities[tid_a]
+                vel_b = velocities[tid_b]
+
+                # Relative displacement D = B - A
+                dx = pos_b[0] - pos_a[0]
+                dy = pos_b[1] - pos_a[1]
+                dist = math.hypot(dx, dy)
+                if dist < 5 or dist > 200:
+                    continue
+
+                # Relative velocity Vr = Va - Vb
+                vrx = vel_a[0] - vel_b[0]
+                vry = vel_a[1] - vel_b[1]
+                vr_sq = vrx * vrx + vry * vry
+                if vr_sq < 1:
+                    continue
+
+                # Dot product: dot(Vr, D) — positive means approaching
+                dot_val = vrx * dx + vry * dy
+                if dot_val <= 0:
+                    continue  # diverging
+
+                # Time of closest approach (in frames)
+                t_min = dot_val / vr_sq
+                if t_min > 30:  # > ~1.5 s at 20 fps
+                    continue
+
+                # Min separation at closest approach
+                cx = -dx + vrx * t_min
+                cy = -dy + vry * t_min
+                min_sep = math.hypot(cx, cy)
+                if min_sep > 35:  # pixels
+                    continue
+
+                # 2-D cross product Va x Vb (scalar) — sign = passing side
+                cross_val = vel_a[0] * vel_b[1] - vel_a[1] * vel_b[0]
+
+                collisions.append({
+                    'id_a': int(tid_a), 'id_b': int(tid_b),
+                    'pos_a': pos_a, 'pos_b': pos_b,
+                    'distance': round(dist, 1),
+                    'time_frames': round(t_min, 1),
+                    'min_sep': round(min_sep, 1),
+                    'cross': round(cross_val, 2),
+                })
+        return collisions
+
+    def _compute_density(self, person_count):
+        """Crowd density as ratio of count to max capacity."""
+        if self.max_capacity <= 0:
+            return 0.0
+        return min(person_count / self.max_capacity, 1.5)
+
+    def connect_serial(self, port):
+        """Open serial connection to ESP32 band."""
+        if serial is None:
+            raise RuntimeError('pyserial not installed — run: pip install pyserial')
+        with self.lock:
+            if self.serial_conn and self.serial_conn.is_open:
+                self.serial_conn.close()
+            self.serial_port = port
+            self.serial_conn = serial.Serial(port, 115200, timeout=1)
+            time.sleep(0.5)  # ESP32 reboot grace period
+        return True
+
+    def disconnect_serial(self):
+        """Close serial connection."""
+        with self.lock:
+            if self.serial_conn and self.serial_conn.is_open:
+                self.serial_conn.close()
+            self.serial_conn = None
+            self.serial_port = None
+
+    def _notify_esp32(self, density, has_fall, has_collision):
+        """Send value to ESP32 band over Serial.
+        Protocol: send a line like '0.45\n' or '2\n' for fall."""
+        if not self.serial_conn or not self.serial_conn.is_open:
+            return
+        try:
+            if has_fall:
+                self.serial_conn.write(b'2\n')
+            else:
+                # Clamp to 0.1-1.0 range that the ESP32 expects
+                value = max(0.1, min(density, 1.0))
+                if has_collision:
+                    value = max(value, 0.8)  # bump to at least HIGH on collision
+                self.serial_conn.write(f'{value:.2f}\n'.encode())
+        except Exception:
+            pass
+
     def _stream_loop(self):
         """Background loop: grab frames, detect, emit."""
         while self.running:
@@ -212,7 +358,6 @@ class LiveDetectionManager:
             person_count = 0
             current_ids = set()
             fall_count = 0
-
             # Run YOLO + homography if calibrated
             if self.calibration_state == 'done' and self.model and self.H_matrix is not None:
                 results = self.model.track(frame, classes=[0], persist=True, verbose=False)
@@ -297,7 +442,64 @@ class LiveDetectionManager:
 
                 fall_count = len(self.fall_alerts)
 
+                # ── Collision detection using vector dot/cross product ──
+                velocities = self._compute_velocities()
+                new_collisions = self._detect_collisions(velocities)
+
+                # Merge into history with timestamp
+                _col_now = time.time()
+                for col in new_collisions:
+                    key = (min(col['id_a'], col['id_b']), max(col['id_a'], col['id_b']))
+                    self._collision_history[key] = {'data': col, 'time': _col_now}
+
+                # Prune expired entries
+                expired_keys = [k for k, v in self._collision_history.items()
+                                if _col_now - v['time'] > self.COLLISION_PERSIST_DURATION]
+                for k in expired_keys:
+                    del self._collision_history[k]
+
+                # Build full collision list from history
+                self.collisions = [v['data'] for v in self._collision_history.values()]
+
+                # Draw collision warnings on floor plan
+                if display_map is not None:
+                    for col in self.collisions:
+                        pa = col['pos_a']
+                        pb = col['pos_b']
+                        mid = ((pa[0] + pb[0]) // 2, (pa[1] + pb[1]) // 2)
+                        # Orange warning line between the pair
+                        cv2.line(display_map, pa, pb, (0, 100, 255), 2, cv2.LINE_AA)
+                        # Warning triangle at midpoint
+                        sz = 10
+                        tri = np.array([
+                            [mid[0], mid[1] - sz],
+                            [mid[0] - sz, mid[1] + sz],
+                            [mid[0] + sz, mid[1] + sz]
+                        ], dtype=np.int32)
+                        cv2.fillPoly(display_map, [tri], (0, 100, 255))
+                        cv2.putText(display_map, '!', (mid[0] - 3, mid[1] + 5),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+
             self.person_count = person_count
+
+            # Compute density and notify ESP32
+            self.density = self._compute_density(person_count)
+            # Only flag a NEW fall (not already sent to ESP32)
+            new_falls = set(self.fall_alerts.keys()) - self._esp32_notified_falls
+            has_new_fall = len(new_falls) > 0
+            has_collision = len(self.collisions) > 0
+            _now = time.time()
+            if _now - self.last_esp32_notify > 1.0:
+                self.last_esp32_notify = _now
+                if has_new_fall:
+                    self._esp32_notified_falls.update(new_falls)
+                threading.Thread(
+                    target=self._notify_esp32,
+                    args=(self.density, has_new_fall, has_collision),
+                    daemon=True
+                ).start()
+            # Clean up notified set when fall alerts expire
+            self._esp32_notified_falls &= set(self.fall_alerts.keys())
 
             # Encode frames as JPEG → base64
             _, cam_buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
@@ -314,6 +516,10 @@ class LiveDetectionManager:
                 'person_count': person_count,
                 'fall_count': fall_count,
                 'fall_alerts': [{'id': tid, 'x': a['x'], 'y': a['y']} for tid, a in self.fall_alerts.items()],
+                'density': round(self.density, 3),
+                'collision_count': len(self.collisions),
+                'collisions': [{'id_a': c['id_a'], 'id_b': c['id_b'], 'dist': c['distance'], 'time': c['time_frames']} for c in self.collisions],
+                'esp32_connected': self.serial_conn is not None and self.serial_conn.is_open,
                 'calibration_state': self.calibration_state,
                 'map_points_count': len(self.map_points),
                 'cam_points_count': len(self.cam_points),
@@ -329,6 +535,11 @@ class LiveDetectionManager:
             'calibration_state': self.calibration_state,
             'streaming': self.running,
             'person_count': self.person_count,
+            'density': round(self.density, 3),
+            'collision_count': len(self.collisions),
+            'serial_port': self.serial_port,
+            'esp32_connected': self.serial_conn is not None and self.serial_conn.is_open,
+            'max_capacity': self.max_capacity,
         }
 
 
@@ -438,6 +649,27 @@ def on_start_stream():
 @socketio.on('stop_stream')
 def on_stop_stream():
     manager.stop_streaming()
+
+
+@socketio.on('set_serial_port')
+def on_set_serial_port(data):
+    port = data.get('port', '').strip()
+    if not port:
+        manager.disconnect_serial()
+        emit('esp32_config', {'port': None, 'connected': False})
+        return
+    try:
+        manager.connect_serial(port)
+        emit('esp32_config', {'port': port, 'connected': True})
+    except Exception as e:
+        emit('esp32_config', {'port': port, 'connected': False, 'error': str(e)})
+
+
+@socketio.on('set_max_capacity')
+def on_set_max_capacity(data):
+    cap = data.get('capacity', 30)
+    manager.max_capacity = max(1, int(cap))
+    emit('capacity_config', {'max_capacity': manager.max_capacity})
 
 
 if __name__ == '__main__':

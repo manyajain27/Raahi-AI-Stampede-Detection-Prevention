@@ -1,112 +1,191 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Floor Planner</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1">
-</head>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}?v=1"
+    />
+  </head>
 
-<body>
+  <body>
     <script>
-        window.onerror = function (msg, url, line, col, error) {
-            alert("JS Error: " + msg + "\nLine: " + line);
-        };
+      window.onerror = function (msg, url, line, col, error) {
+        alert("JS Error: " + msg + "\nLine: " + line);
+      };
     </script>
     <div id="toolbar">
-        <button id="pathway-btn" class="tool-btn">Pathway</button>
-        <button id="entry-btn" class="tool-btn">Entry</button>
-        <button id="exit-btn" class="tool-btn">Exit</button>
-        <button id="choke-btn" class="tool-btn">Choke Point</button>
-        <button id="select-btn" class="tool-btn">Select/Move</button>
-        <button id="clear-btn" class="tool-btn">Clear</button>
-        <button id="export-btn" class="tool-btn">Export YAML</button>
-        <button id="import-btn" class="tool-btn">Import YAML</button>
-        <input type="file" id="file-input" accept=".yaml,.yml" style="display: none;">
-        <button id="bg-image-btn" class="tool-btn" style="background: #8e44ad;">📷 Load Image</button>
-        <input type="file" id="bg-image-input" accept="image/*" style="display: none;">
-        <button id="auto-choke-btn" class="tool-btn" style="background: #d35400;">🔍 Auto-detect Chokes</button>
-        <button id="suggest-btn" class="tool-btn" style="background: #2980b9;">💡 Suggestions</button>
-        <button id="visualize-btn" class="tool-btn" style="background: #27ae60; font-weight: bold;">▶ Run in
-            Visualizer</button>
-        <a href="/outdoor" class="tool-btn nav-link">Outdoor Editor</a>
-        <span class="instructions">Hold Shift to snap to grid</span>
+      <button id="pathway-btn" class="tool-btn">Pathway</button>
+      <button id="entry-btn" class="tool-btn">Entry</button>
+      <button id="exit-btn" class="tool-btn">Exit</button>
+      <button id="choke-btn" class="tool-btn">Choke Point</button>
+      <button id="select-btn" class="tool-btn">Select/Move</button>
+      <button id="clear-btn" class="tool-btn">Clear</button>
+      <button id="export-btn" class="tool-btn">Export YAML</button>
+      <button id="import-btn" class="tool-btn">Import YAML</button>
+      <input
+        type="file"
+        id="file-input"
+        accept=".yaml,.yml"
+        style="display: none"
+      />
+      <button id="bg-image-btn" class="tool-btn" style="background: #8e44ad">
+        📷 Load Image
+      </button>
+      <input
+        type="file"
+        id="bg-image-input"
+        accept="image/*"
+        style="display: none"
+      />
+      <button id="auto-choke-btn" class="tool-btn" style="background: #d35400">
+        🔍 Auto-detect Chokes
+      </button>
+      <button id="suggest-btn" class="tool-btn" style="background: #2980b9">
+        💡 Suggestions
+      </button>
+      <button
+        id="visualize-btn"
+        class="tool-btn"
+        style="background: #27ae60; font-weight: bold"
+      >
+        ▶ Run in Visualizer
+      </button>
+      <span class="instructions">Hold Shift to snap to grid</span>
     </div>
     <div id="content">
-        <canvas id="canvas"></canvas>
-        <div id="right-panel">
-            <h3>Floor Plan Info</h3>
-            <div id="stats">
-                <p><strong>Total Pathways:</strong> <span id="pathway-count">0</span></p>
-                <p><strong>Entry Points:</strong> <span id="entry-count">0</span></p>
-                <p><strong>Exit Points:</strong> <span id="exit-count">0</span></p>
-                <p><strong>Choke Points:</strong> <span id="choke-count">0</span></p>
-                <p><strong>Joints:</strong> <span id="joint-count">0</span></p>
-            </div>
-
-            <!-- Event Capacity Input -->
-            <div id="capacity-panel"
-                style="margin-bottom: 20px; padding: 10px; background: #ecf0f1; border-radius: 5px;">
-                <h4>Event Capacity</h4>
-                <div style="margin-bottom: 5px;">
-                    <label style="font-size: 12px; display: block;">Max Venue Capacity:</label>
-                    <input type="number" id="max-capacity" value="1000" min="10"
-                        style="width: 100%; padding: 4px; box-sizing: border-box;">
-                </div>
-                <div>
-                    <label style="font-size: 12px; display: block;">Expected Attendance:</label>
-                    <input type="number" id="expected-attendance" value="500" min="10"
-                        style="width: 100%; padding: 4px; box-sizing: border-box;">
-                </div>
-                <div style="margin-top: 8px; font-size: 12px; font-weight: bold;">
-                    Crowd Density Risk: <span id="density-risk" style="color: #27ae60;">Low (50%)</span>
-                </div>
-            </div>
-
-            <!-- Background Image Controls -->
-            <div id="bg-controls" style="display: none;">
-                <h4>Background Image</h4>
-                <div style="margin-bottom: 8px;">
-                    <label style="font-size: 12px;">Opacity: <span id="bg-opacity-val">50%</span></label>
-                    <input type="range" id="bg-opacity" min="5" max="100" value="50" style="width: 100%;">
-                </div>
-                <button class="delete-btn" id="bg-remove-btn" style="width: 100%;">Remove Image</button>
-            </div>
-
-            <div id="property-editor" style="display: none;">
-                <h4>Properties</h4>
-                <div id="property-content"></div>
-            </div>
-
-            <!-- Suggestions Panel -->
-            <div id="suggestions-panel" style="display: none;">
-                <h4>💡 Smart Suggestions</h4>
-                <div id="suggestions-content"></div>
-                <button class="delete-btn" id="clear-suggestions-btn"
-                    style="width: 100%; background: #7f8c8d; margin-top: 8px;">Clear Suggestions</button>
-            </div>
-
-            <div id="info">
-                <h4>Instructions</h4>
-                <ul>
-                    <li><strong>Pathway:</strong> Click to create points, double-click to finish</li>
-                    <li><strong>Entry/Exit/Choke:</strong> Click to place (choke must be on pathway)</li>
-                    <li><strong>Select:</strong> Click element to edit properties</li>
-                    <li><strong>Shift:</strong> Snap to grid when moving/placing</li>
-                    <li><strong>📷 Load Image:</strong> Upload a venue blueprint as background</li>
-                    <li><strong>🔍 Auto-detect:</strong> Find choke points from pathway geometry</li>
-                    <li><strong>💡 Suggestions:</strong> Get barricade/volunteer/security placement</li>
-                </ul>
-            </div>
-            <div id="scale-info">
-                <h4>Scale</h4>
-                <p>1 meter = <span id="pixels-per-meter">50</span> pixels</p>
-                <label>Pixels per meter: <input type="number" id="scale-input" value="50" min="10" max="200"></label>
-            </div>
+      <canvas id="canvas"></canvas>
+      <div id="right-panel">
+        <h3>Floor Plan Info</h3>
+        <div id="stats">
+          <p>
+            <strong>Total Pathways:</strong> <span id="pathway-count">0</span>
+          </p>
+          <p><strong>Entry Points:</strong> <span id="entry-count">0</span></p>
+          <p><strong>Exit Points:</strong> <span id="exit-count">0</span></p>
+          <p><strong>Choke Points:</strong> <span id="choke-count">0</span></p>
+          <p><strong>Joints:</strong> <span id="joint-count">0</span></p>
         </div>
+
+        <!-- Event Capacity Input -->
+        <div
+          id="capacity-panel"
+          style="
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+          "
+        >
+          <h4>Event Capacity</h4>
+          <div style="margin-bottom: 5px">
+            <label style="font-size: 12px; display: block"
+              >Max Venue Capacity:</label
+            >
+            <input
+              type="number"
+              id="max-capacity"
+              value="1000"
+              min="10"
+              style="width: 100%; padding: 4px; box-sizing: border-box"
+            />
+          </div>
+          <div>
+            <label style="font-size: 12px; display: block"
+              >Expected Attendance:</label
+            >
+            <input
+              type="number"
+              id="expected-attendance"
+              value="500"
+              min="10"
+              style="width: 100%; padding: 4px; box-sizing: border-box"
+            />
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; font-weight: bold">
+            Crowd Density Risk:
+            <span id="density-risk" style="color: #27ae60">Low (50%)</span>
+          </div>
+        </div>
+
+        <!-- Background Image Controls -->
+        <div id="bg-controls" style="display: none">
+          <h4>Background Image</h4>
+          <div style="margin-bottom: 8px">
+            <label style="font-size: 12px"
+              >Opacity: <span id="bg-opacity-val">50%</span></label
+            >
+            <input
+              type="range"
+              id="bg-opacity"
+              min="5"
+              max="100"
+              value="50"
+              style="width: 100%"
+            />
+          </div>
+          <button class="delete-btn" id="bg-remove-btn" style="width: 100%">
+            Remove Image
+          </button>
+        </div>
+
+        <div id="property-editor" style="display: none">
+          <h4>Properties</h4>
+          <div id="property-content"></div>
+        </div>
+
+        <!-- Suggestions Panel -->
+        <div id="suggestions-panel" style="display: none">
+          <h4>💡 Smart Suggestions</h4>
+          <div id="suggestions-content"></div>
+          <button
+            class="delete-btn"
+            id="clear-suggestions-btn"
+            style="width: 100%; background: #7f8c8d; margin-top: 8px"
+          >
+            Clear Suggestions
+          </button>
+        </div>
+
+        <div id="info">
+          <h4>Instructions</h4>
+          <ul>
+            <li>
+              <strong>Pathway:</strong> Click to create points, double-click to
+              finish
+            </li>
+            <li>
+              <strong>Entry/Exit/Choke:</strong> Click to place (choke must be
+              on pathway)
+            </li>
+            <li><strong>Select:</strong> Click element to edit properties</li>
+            <li><strong>Shift:</strong> Snap to grid when moving/placing</li>
+            <li>
+              <strong>📷 Load Image:</strong> Upload a venue blueprint as
+              background
+            </li>
+            <li>
+              <strong>🔍 Auto-detect:</strong> Find choke points from pathway
+              geometry
+            </li>
+            <li>
+              <strong>💡 Suggestions:</strong> Get barricade/volunteer/security
+              placement
+            </li>
+          </ul>
+        </div>
+        <div id="scale-info">
+          <h4>Scale</h4>
+          <p>1 meter = <span id="pixels-per-meter">50</span> pixels</p>
+          <label
+            >Pixels per meter:
+            <input type="number" id="scale-input" value="50" min="10" max="200"
+          /></label>
+        </div>
+      </div>
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}?v=1"></script>
-</body>
-
+  </body>
 </html>

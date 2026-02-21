@@ -85,43 +85,6 @@
         text-align: center;
         line-height: 1.6;
       }
-      .setup-steps {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        width: 340px;
-      }
-      .step-btn {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        background: #fff;
-        border: 1px solid #e4e7f0;
-        border-radius: 10px;
-        color: #334155;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.15s;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-      }
-      .step-btn:hover {
-        background: #f1f3f9;
-        border-color: #bac8ff;
-      }
-      .step-btn.done {
-        border-color: #86efac;
-        background: #f0fdf4;
-        color: #16a34a;
-      }
-      .step-btn.active {
-        border-color: #748ffc;
-        color: #4263eb;
-        background: #eef2ff;
-      }
-      .step-btn .check {
-        font-size: 14px;
-      }
 
       .venue-select {
         padding: 8px 12px;
@@ -326,32 +289,48 @@
     <div class="setup-panel" id="setupPanel">
       <h2>Setup Live Detection</h2>
       <p>
-        Connect a camera, load your venue layout, and calibrate the perspective
-        to start real-time crowd monitoring.
+        Select a venue to automatically load the camera, model, and calibrate.
       </p>
 
-      <select class="venue-select" id="venueSelect">
+      <select class="venue-select" id="venueSelect" onchange="autoLaunch()">
         <option value="">Select a venue file...</option>
       </select>
 
-      <div class="setup-steps">
-        <div class="step-btn" id="stepVenue" onclick="loadVenue()">
-          1. Load Venue <span class="check" id="checkVenue">○</span>
-        </div>
-        <div class="step-btn" id="stepModel" onclick="loadModel()">
-          2. Load YOLO Model <span class="check" id="checkModel">○</span>
-        </div>
-        <div class="step-btn" id="stepCamera" onclick="openCamera()">
-          3. Open Camera <span class="check" id="checkCamera">○</span>
-        </div>
+      <!-- Loading state (hidden until venue selected) -->
+      <div
+        id="setupLoading"
+        style="display: none; text-align: center; margin-top: 12px"
+      >
         <div
-          class="step-btn"
-          id="stepCalibrate"
-          onclick="startCalibAndSwitch()"
+          style="
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e4e7f0;
+            border-top-color: #4c6ef5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          "
+        ></div>
+        <p
+          id="setupStatus"
+          style="
+            margin-top: 12px;
+            font-size: 13px;
+            color: #4263eb;
+            font-weight: 500;
+          "
         >
-          4. Calibrate & Start <span class="check" id="checkCalib">○</span>
-        </div>
+          Loading camera...
+        </p>
       </div>
+      <style>
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      </style>
     </div>
 
     <!-- Main dashboard (hidden until streaming) -->
@@ -394,9 +373,41 @@
           <div class="label">People Detected</div>
           <div class="value" id="metricPeople">0</div>
         </div>
-        <div class="metric-card" id="fallCard" style="border-color: #dc262640">
+        <div class="metric-card" id="densityCard">
+          <div class="label">Crowd Density</div>
+          <div class="value" id="metricDensity" style="font-size: 18px">0%</div>
+          <div
+            style="
+              margin-top: 6px;
+              height: 6px;
+              background: #e4e7f0;
+              border-radius: 3px;
+              overflow: hidden;
+            "
+          >
+            <div
+              id="densityBar"
+              style="
+                height: 100%;
+                width: 0%;
+                border-radius: 3px;
+                background: #16a34a;
+                transition:
+                  width 0.3s,
+                  background 0.3s;
+              "
+            ></div>
+          </div>
+        </div>
+        <div class="metric-card" id="collisionCard">
+          <div class="label">Collision Risks</div>
+          <div class="value" id="metricCollisions" style="color: #94a3b8">
+            0
+          </div>
+        </div>
+        <div class="metric-card" id="fallCard" style="border-color: #e4e7f0">
           <div class="label">Fall Alerts</div>
-          <div class="value" id="metricFalls" style="color: #666">0</div>
+          <div class="value" id="metricFalls" style="color: #94a3b8">0</div>
         </div>
         <div class="metric-card">
           <div class="label">Calibration</div>
@@ -411,7 +422,64 @@
           </div>
         </div>
 
+        <div id="collisionAlertList"></div>
         <div id="fallAlertList"></div>
+
+        <h3 style="margin-top: 8px">ESP32 Band (Serial)</h3>
+        <div style="display: flex; gap: 6px">
+          <input
+            type="text"
+            id="serialPort"
+            placeholder="COM3"
+            value="COM3"
+            style="
+              flex: 1;
+              padding: 8px 10px;
+              border: 1px solid #e4e7f0;
+              border-radius: 8px;
+              font-size: 12px;
+              background: #fff;
+              color: #1e293b;
+            "
+          />
+          <button
+            class="btn btn-primary"
+            onclick="connectSerial()"
+            style="padding: 8px 12px; font-size: 11px"
+          >
+            Link
+          </button>
+        </div>
+        <div
+          id="esp32Status"
+          style="font-size: 11px; color: #94a3b8; margin-top: 2px"
+        ></div>
+
+        <h3 style="margin-top: 4px">Max Capacity</h3>
+        <div style="display: flex; gap: 6px">
+          <input
+            type="number"
+            id="maxCapacity"
+            value="30"
+            min="1"
+            style="
+              flex: 1;
+              padding: 8px 10px;
+              border: 1px solid #e4e7f0;
+              border-radius: 8px;
+              font-size: 12px;
+              background: #fff;
+              color: #1e293b;
+            "
+          />
+          <button
+            class="btn btn-primary"
+            onclick="setMaxCapacity()"
+            style="padding: 8px 12px; font-size: 11px"
+          >
+            Set
+          </button>
+        </div>
 
         <h3 style="margin-top: 8px">Controls</h3>
         <button
@@ -459,36 +527,26 @@
           });
         });
 
-      // ─── Setup actions ───
-      function loadVenue() {
+      // ─── Auto-launch: venue select triggers full pipeline ───
+      function autoLaunch() {
         const path = document.getElementById("venueSelect").value;
-        if (!path) {
-          alert("Select a venue first");
-          return;
-        }
+        if (!path) return;
+
+        // Show loading spinner, disable select
+        document.getElementById("setupLoading").style.display = "block";
+        document.getElementById("venueSelect").disabled = true;
+        setStatus("Loading venue...");
+
         socket.emit("load_venue", { path });
       }
 
-      function loadModel() {
-        document.getElementById("stepModel").classList.add("active");
-        socket.emit("load_model");
+      function setStatus(msg) {
+        document.getElementById("setupStatus").textContent = msg;
       }
 
-      function openCamera() {
-        socket.emit("open_camera", { source: 0 });
-      }
-
-      function startCalibAndSwitch() {
-        if (!venueReady || !modelReady || !cameraReady) {
-          alert("Complete steps 1–3 first");
-          return;
-        }
-        // Switch to dashboard view and start calibration there
+      function switchToDashboard() {
         document.getElementById("setupPanel").style.display = "none";
         document.getElementById("dashboard").classList.add("active");
-
-        socket.emit("start_stream");
-        socket.emit("start_calibration");
       }
 
       function startCalibration() {
@@ -499,31 +557,63 @@
         socket.emit("stop_stream");
       }
 
-      // ─── Socket events ───
+      function connectSerial() {
+        const port = document.getElementById("serialPort").value.trim();
+        socket.emit("set_serial_port", { port });
+      }
+
+      function setMaxCapacity() {
+        const cap =
+          parseInt(document.getElementById("maxCapacity").value) || 30;
+        socket.emit("set_max_capacity", { capacity: cap });
+      }
+
+      socket.on("esp32_config", (data) => {
+        const el = document.getElementById("esp32Status");
+        if (data.connected) {
+          el.innerHTML =
+            '<span style="color:#16a34a">● Connected to ' +
+            data.port +
+            "</span>";
+        } else if (data.error) {
+          el.innerHTML =
+            '<span style="color:#dc2626">● ' + data.error + "</span>";
+        } else {
+          el.innerHTML = '<span style="color:#94a3b8">Disconnected</span>';
+        }
+      });
+
+      socket.on("capacity_config", (data) => {
+        document.getElementById("maxCapacity").value = data.max_capacity;
+      });
+
+      // ─── Socket events — auto-chain pipeline ───
       socket.on("venue_loaded", () => {
         venueReady = true;
         updateDot("dotVenue", true);
-        document.getElementById("stepVenue").classList.add("done");
-        document.getElementById("checkVenue").textContent = "✓";
+        setStatus("Loading YOLO model...");
+        socket.emit("load_model");
       });
 
       socket.on("model_loaded", () => {
         modelReady = true;
         updateDot("dotModel", true);
-        document.getElementById("stepModel").classList.remove("active");
-        document.getElementById("stepModel").classList.add("done");
-        document.getElementById("checkModel").textContent = "✓";
+        setStatus("Opening camera...");
+        socket.emit("open_camera", { source: 0 });
       });
 
       socket.on("camera_opened", (data) => {
         cameraReady = data.success;
         updateDot("dotCamera", data.success);
-        document
-          .getElementById("stepCamera")
-          .classList.add(data.success ? "done" : "");
-        document.getElementById("checkCamera").textContent = data.success
-          ? "✓"
-          : "✗";
+        if (data.success) {
+          setStatus("Starting stream & calibration...");
+          switchToDashboard();
+          socket.emit("start_stream");
+          socket.emit("start_calibration");
+        } else {
+          setStatus("Camera failed to open. Check connection.");
+          document.getElementById("venueSelect").disabled = false;
+        }
       });
 
       socket.on("calibration_started", () => {
@@ -536,7 +626,6 @@
         if (data.state === "done") {
           calibReady = true;
           updateDot("dotCalib", true);
-          document.getElementById("checkCalib").textContent = "✓";
         }
         updateCalibUI();
       });
@@ -612,7 +701,67 @@
         else if (data.person_count > 10) val.className = "value yellow";
         else val.className = "value green";
 
-        // Fall alerts
+        // ── Density ──
+        const density = data.density || 0;
+        const pct = Math.min(density * 100, 150);
+        document.getElementById("metricDensity").textContent =
+          Math.round(pct) + "%";
+        const bar = document.getElementById("densityBar");
+        bar.style.width = Math.min(pct, 100) + "%";
+        if (density >= 1.0) {
+          bar.style.background = "#dc2626";
+          document.getElementById("metricDensity").className = "value red";
+          document.getElementById("densityCard").style.borderColor = "#fecaca";
+        } else if (density >= 0.7) {
+          bar.style.background = "#ea580c";
+          document.getElementById("metricDensity").className = "value";
+          document.getElementById("metricDensity").style.color = "#ea580c";
+          document.getElementById("densityCard").style.borderColor = "#fed7aa";
+        } else if (density >= 0.3) {
+          bar.style.background = "#d97706";
+          document.getElementById("metricDensity").className = "value yellow";
+          document.getElementById("densityCard").style.borderColor = "#e4e7f0";
+        } else {
+          bar.style.background = "#16a34a";
+          document.getElementById("metricDensity").className = "value green";
+          document.getElementById("densityCard").style.borderColor = "#e4e7f0";
+        }
+
+        // ── Collisions ──
+        const cc = data.collision_count || 0;
+        const colVal = document.getElementById("metricCollisions");
+        colVal.textContent = cc;
+        colVal.style.color = cc > 0 ? "#ea580c" : "#94a3b8";
+        document.getElementById("collisionCard").style.borderColor =
+          cc > 0 ? "#fed7aa" : "#e4e7f0";
+        document.getElementById("collisionCard").style.background =
+          cc > 0 ? "#fff7ed" : "#fff";
+
+        const colList = document.getElementById("collisionAlertList");
+        if (data.collisions && data.collisions.length > 0) {
+          colList.innerHTML =
+            '<h3 style="color:#ea580c;margin-bottom:8px;font-family:Outfit,sans-serif;">Collision Risks</h3>' +
+            data.collisions
+              .map(
+                (c) =>
+                  '<div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin-bottom:6px;font-size:12px;color:#9a3412;">' +
+                  "<strong>IDs " +
+                  c.id_a +
+                  " ↔ " +
+                  c.id_b +
+                  "</strong> " +
+                  '<span style="color:#64748b;">dist ' +
+                  c.dist +
+                  "px, ~" +
+                  Math.round((c.time / 20) * 1000) +
+                  "ms</span></div>",
+              )
+              .join("");
+        } else {
+          colList.innerHTML = "";
+        }
+
+        // ── Fall alerts ──
         const fc = data.fall_count || 0;
         const fallVal = document.getElementById("metricFalls");
         fallVal.textContent = fc;
@@ -626,7 +775,7 @@
         const alertList = document.getElementById("fallAlertList");
         if (data.fall_alerts && data.fall_alerts.length > 0) {
           alertList.innerHTML =
-            '<h3 style="color:#dc2626;margin-bottom:8px;font-family:Outfit,sans-serif;">Active Alerts</h3>' +
+            '<h3 style="color:#dc2626;margin-bottom:8px;font-family:Outfit,sans-serif;">Fall Alerts</h3>' +
             data.fall_alerts
               .map(
                 (a) =>

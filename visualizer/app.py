@@ -10,6 +10,11 @@ import threading
 import time
 from pathlib import Path
 
+try:
+    import serial as pyserial
+except ImportError:
+    pyserial = None
+
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 
@@ -37,6 +42,11 @@ class SimulationManager:
         self.thread = None
         self.lock = threading.Lock()
         self.venue_path = None
+
+        # ESP32 serial
+        self.serial_port = None
+        self.serial_conn = None
+        self.last_esp32_notify = 0
         
     def load_venue(self, yaml_path: str) -> dict:
         """Load venue and return static data for clients."""
@@ -168,6 +178,39 @@ class SimulationManager:
         with self.lock:
             self.speed = max(0.1, min(10.0, speed))
     
+    # ─── ESP32 Serial ────────────────────────────────────────────
+
+    def connect_serial(self, port):
+        """Open serial connection to ESP32 band."""
+        if pyserial is None:
+            raise RuntimeError('pyserial not installed — run: pip install pyserial')
+        with self.lock:
+            if self.serial_conn and self.serial_conn.is_open:
+                self.serial_conn.close()
+            self.serial_port = port
+            self.serial_conn = pyserial.Serial(port, 115200, timeout=1)
+            time.sleep(0.5)
+        return True
+
+    def disconnect_serial(self):
+        with self.lock:
+            if self.serial_conn and self.serial_conn.is_open:
+                self.serial_conn.close()
+            self.serial_conn = None
+            self.serial_port = None
+
+    def _notify_esp32(self, risk_level):
+        """Send density value to ESP32 based on simulation risk level.
+        Maps: LOW→0.15, MODERATE→0.5, HIGH→0.8, CRITICAL→1.0"""
+        if not self.serial_conn or not self.serial_conn.is_open:
+            return
+        risk_map = {'LOW': 0.15, 'MODERATE': 0.5, 'HIGH': 0.8, 'CRITICAL': 1.0}
+        value = risk_map.get(risk_level, 0.15)
+        try:
+            self.serial_conn.write(f'{value:.2f}\n'.encode())
+        except Exception:
+            pass
+
     def _simulation_loop(self):
         """Background thread that runs simulation and emits frames."""
         base_timestep = self.config.timestep
@@ -206,6 +249,15 @@ class SimulationManager:
             
             # Emit to all connected clients
             socketio.emit('frame', frame)
+
+            # Notify ESP32 (~once per second)
+            now = time.time()
+            if now - self.last_esp32_notify > 1.0:
+                self.last_esp32_notify = now
+                risk = frame.get('metrics', {}).get('risk', 'LOW')
+                threading.Thread(
+                    target=self._notify_esp32, args=(risk,), daemon=True
+                ).start()
             
             # Sleep based on speed (faster speed = shorter sleep)
             time.sleep(base_timestep / self.speed)
@@ -423,6 +475,34 @@ def handle_load_venue(data):
 # =============================================================================
 # Main
 # =============================================================================
+
+@socketio.on('person_missing')
+def on_person_missing():
+    """Send fall/missing alert (value=2) to ESP32 over serial."""
+    conn = sim_manager.serial_conn
+    if conn and conn.is_open:
+        try:
+            conn.write(b'2\n')
+            emit('person_missing_ack', {'sent': True})
+        except Exception as e:
+            emit('person_missing_ack', {'sent': False, 'error': str(e)})
+    else:
+        emit('person_missing_ack', {'sent': False, 'error': 'ESP32 not connected'})
+
+
+@socketio.on('set_serial_port')
+def on_set_serial_port(data):
+    port = data.get('port', '').strip()
+    if not port:
+        sim_manager.disconnect_serial()
+        emit('esp32_config', {'port': None, 'connected': False})
+        return
+    try:
+        sim_manager.connect_serial(port)
+        emit('esp32_config', {'port': port, 'connected': True})
+    except Exception as e:
+        emit('esp32_config', {'port': port, 'connected': False, 'error': str(e)})
+
 
 if __name__ == '__main__':
     print("=" * 60)
