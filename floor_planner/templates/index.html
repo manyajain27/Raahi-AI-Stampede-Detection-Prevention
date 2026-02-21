@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floor Planner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="toolbar">
+        <button id="pathway-btn" class="tool-btn">Pathway</button>
+        <button id="entry-btn" class="tool-btn">Entry</button>
+        <button id="exit-btn" class="tool-btn">Exit</button>
+        <button id="choke-btn" class="tool-btn">Choke Point</button>
+        <button id="select-btn" class="tool-btn">Select/Move</button>
+        <button id="clear-btn" class="tool-btn">Clear</button>
+        <button id="export-btn" class="tool-btn">Export YAML</button>
+        <button id="import-btn" class="tool-btn">Import YAML</button>
+        <input type="file" id="file-input" accept=".yaml,.yml" style="display: none;">
+        <a href="/outdoor" class="tool-btn nav-link">Outdoor Editor</a>
+        <span class="instructions">Hold Shift to snap to grid</span>
+    </div>
+    <div id="content">
+        <canvas id="canvas"></canvas>
+        <div id="right-panel">
+            <h3>Floor Plan Info</h3>
+            <div id="stats">
+                <p><strong>Total Pathways:</strong> <span id="pathway-count">0</span></p>
+                <p><strong>Entry Points:</strong> <span id="entry-count">0</span></p>
+                <p><strong>Exit Points:</strong> <span id="exit-count">0</span></p>
+                <p><strong>Choke Points:</strong> <span id="choke-count">0</span></p>
+                <p><strong>Joints:</strong> <span id="joint-count">0</span></p>
+            </div>
+            
+            <div id="property-editor" style="display: none;">
+                <h4>Properties</h4>
+                <div id="property-content"></div>
+            </div>
+            
+            <div id="info">
+                <h4>Instructions</h4>
+                <ul>
+                    <li><strong>Pathway:</strong> Click to create points, double-click to finish</li>
+                    <li><strong>Entry/Exit/Choke:</strong> Click to place (choke must be on pathway)</li>
+                    <li><strong>Select:</strong> Click element to edit properties</li>
+                    <li><strong>Shift:</strong> Snap to grid when moving/placing</li>
+                </ul>
+            </div>
+            <div id="scale-info">
+                <h4>Scale</h4>
+                <p>1 meter = <span id="pixels-per-meter">50</span> pixels</p>
+                <label>Pixels per meter: <input type="number" id="scale-input" value="50" min="10" max="200"></label>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

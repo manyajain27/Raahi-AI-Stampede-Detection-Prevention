@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+        .controls { margin-bottom: 20px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #console { 
+            background: #f0f0f0; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            max-height: 200px; 
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Map Initialization Test</h1>
+    
+    <div id="console">
+        <strong>Console Output:</strong><br>
+    </div>
+    
+    <div class="controls">
+        <button id="test-init">Test Init</button>
+        <button id="test-search">Test Search (Bangalore)</button>
+        <button id="test-search2">Test Search (New York)</button>
+        <button id="check-map">Check Map Status</button>
+    </div>
+    
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const consoleDiv = document.getElementById('console');
+        function log(msg) {
+            console.log(msg);
+            consoleDiv.innerHTML += `<div>${new Date().toISOString().split('T')[1].split('.')[0]}: ${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        log('Script started');
+        log('Leaflet available: ' + (typeof L !== 'undefined'));
+        
+        let testMap = null;
+        
+        function testInit() {
+            log('testInit() called');
+            
+            if (testMap) {
+                log('Map already exists, removing...');
+                testMap.remove();
+                testMap = null;
+            }
+            
+            try {
+                testMap = L.map('map').setView([12.9716, 77.5946], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(testMap);
+                log('Map initialized successfully!');
+            } catch (error) {
+                log('ERROR: ' + error.message);
+            }
+        }
+        
+        function testSearch(query, lat, lng) {
+            log('testSearch called: ' + query);
+            
+            if (!testMap) {
+                log('ERROR: Map is null!');
+                alert('Map not initialized!');
+                return;
+            }
+            
+            log('Map exists, setting view to ' + lat + ', ' + lng);
+            testMap.setView([lat, lng], 16);
+            
+            // Add marker
+            L.marker([lat, lng])
+                .addTo(testMap)
+                .bindPopup(query)
+                .openPopup();
+            
+            log('View set successfully!');
+        }
+        
+        function checkStatus() {
+            log('Map status: ' + (testMap ? 'Initialized' : 'NULL'));
+            if (testMap) {
+                const center = testMap.getCenter();
+                log('Center: ' + center.lat + ', ' + center.lng);
+                log('Zoom: ' + testMap.getZoom());
+            }
+        }
+        
+        document.getElementById('test-init').addEventListener('click', testInit);
+        document.getElementById('test-search').addEventListener('click', () => {
+            testSearch('Bangalore', 12.9716, 77.5946);
+        });
+        document.getElementById('test-search2').addEventListener('click', () => {
+            testSearch('New York', 40.7128, -74.0060);
+        });
+        document.getElementById('check-map').addEventListener('click', checkStatus);
+        
+        // Auto-initialize on load
+        log('Document ready state: ' + document.readyState);
+        if (document.readyState === 'loading') {
+            log('Waiting for DOMContentLoaded...');
+            document.addEventListener('DOMContentLoaded', () => {
+                log('DOMContentLoaded fired');
+                testInit();
+            });
+        } else {
+            log('DOM already loaded');
+            testInit();
+        }
+    </script>
+</body>
+</html>
