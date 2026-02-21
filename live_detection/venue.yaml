@@ -1,0 +1,123 @@
+pixelsPerMeter: 50
+pathways:
+  -
+      id: 6
+      name: Pathway 2
+      width: 2
+      points:
+        -
+            x: 400
+            y: 150
+        -
+            x: 400
+            y: 650
+        -
+            x: 900
+            y: 650
+        -
+            x: 900
+            y: 450
+        -
+            x: 1250
+            y: 450
+        -
+            x: 1250
+            y: 850
+        -
+            x: 1600
+            y: 850
+        -
+            x: 1600
+            y: 100
+  -
+      id: 7
+      name: Pathway 3
+      width: 2
+      points:
+        -
+            x: 652
+            y: 945.1333312988281
+        -
+            x: 650
+            y: 650
+  -
+      id: 9
+      name: Pathway 4
+      width: 2
+      points:
+        -
+            x: 1050
+            y: 50
+        -
+            x: 1050
+            y: 950
+entries:
+  -
+      id: 20
+      name: Entry 2
+      x: 400
+      y: 150
+      spawnRate: 1
+  -
+      id: 21
+      name: Entry 3
+      x: 1050
+      y: 950
+      spawnRate: 1
+exits:
+  -
+      id: 22
+      name: Exit 2
+      x: 650
+      y: 950
+      exitRate: 1
+  -
+      id: 23
+      name: Exit 3
+      x: 1050
+      y: 50
+      exitRate: 1
+  -
+      id: 24
+      name: Exit 4
+      x: 1600
+      y: 100
+      exitRate: 1
+chokePoints:
+  -
+      id: 25
+      name: Choke 3
+      x: 650
+      y: 650
+  -
+      id: 26
+      name: Choke 4
+      x: 1050
+      y: 450
+  -
+      id: 27
+      name: Choke 5
+      x: 900
+      y: 650
+  -
+      id: 28
+      name: Choke 6
+      x: 1250
+      y: 850
+joints:
+  -
+      id: 18
+      name: Joint 1
+      x: 650
+      y: 650
+      connectedPathways:
+        - 7
+        - 6
+  -
+      id: 19
+      name: Joint 2
+      x: 1050
+      y: 450
+      connectedPathways:
+        - 6
+        - 9
