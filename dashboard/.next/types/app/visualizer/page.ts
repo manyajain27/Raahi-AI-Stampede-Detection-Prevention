@@ -1,4 +1,4 @@
-// File: C:\Users\ACER\Desktop\K-Hacks\dashboard\src\app\visualizer\page.tsx
+// File: D:\Projects\LOC\reverse_cowboys_OpenInnovation\dashboard\src\app\visualizer\page.tsx
 import * as entry from '../../../../src/app/visualizer/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
