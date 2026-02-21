@@ -16,26 +16,26 @@ const ACTION_BUTTONS: Record<ActionType, { label: string; description: string; a
   FLOOR_PLANNER: {
     label: 'Open Floor Planner',
     description: 'Pre-loaded with your event data',
-    accent: 'bg-brand-50',
+    accent: 'bg-gradient-to-r from-brand-50 to-brand-100/50',
     border: 'border-brand-200',
     text: 'text-brand-700',
-    hover: 'hover:bg-brand-100/60',
+    hover: 'hover:from-brand-100/80 hover:to-brand-100/60',
   },
   UPLOAD_IMAGE: {
     label: 'Upload Floor Plan',
     description: 'Attach a venue image',
-    accent: 'bg-emerald-50',
+    accent: 'bg-gradient-to-r from-emerald-50 to-teal-50',
     border: 'border-emerald-200',
     text: 'text-emerald-700',
-    hover: 'hover:bg-emerald-100/60',
+    hover: 'hover:from-emerald-100/60 hover:to-teal-50',
   },
   SIMULATOR: {
     label: 'Run Simulation',
     description: 'Simulate crowd flow',
-    accent: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-700',
-    hover: 'hover:bg-amber-100/60',
+    accent: 'bg-gradient-to-r from-orange-50 to-amber-50',
+    border: 'border-orange-200',
+    text: 'text-orange-700',
+    hover: 'hover:from-orange-100/60 hover:to-amber-50',
   },
 };
 
@@ -125,8 +125,8 @@ export default function ChatMessage({ message, isStreaming, onAction }: ChatMess
       <div className={cn('max-w-[680px]', isUser && 'text-right')}>
         {/* Sender label */}
         <p className={cn(
-          'text-[10.5px] font-medium uppercase tracking-[0.06em] mb-1.5 px-1',
-          isUser ? 'text-ink-300' : 'text-ink-300'
+          'text-[10.5px] font-semibold uppercase tracking-[0.06em] mb-1.5 px-1',
+          isUser ? 'text-ink-400' : 'text-brand-500'
         )}>
           {isUser ? 'You' : 'Raahi'}
         </p>
@@ -136,8 +136,8 @@ export default function ChatMessage({ message, isStreaming, onAction }: ChatMess
           className={cn(
             'rounded-2xl px-5 py-3.5 text-[13.5px] leading-[1.7]',
             isUser
-              ? 'bg-ink-900 text-white/90 rounded-br-lg'
-              : 'bg-white text-ink-700 rounded-bl-lg border border-surface-3/80'
+              ? 'bg-gradient-to-br from-brand-600 to-brand-700 text-white rounded-br-lg shadow-sm'
+              : 'bg-white text-ink-700 rounded-bl-lg border border-surface-3/70 shadow-sm'
           )}
         >
           {isUser ? (
@@ -146,9 +146,9 @@ export default function ChatMessage({ message, isStreaming, onAction }: ChatMess
             renderContentWithActions(message.content, onAction)
           ) : isStreaming ? (
             <div className="flex items-center gap-1.5 py-1 px-0.5">
-              <div className="typing-dot w-1.5 h-1.5 rounded-full bg-ink-300" />
-              <div className="typing-dot w-1.5 h-1.5 rounded-full bg-ink-300" />
-              <div className="typing-dot w-1.5 h-1.5 rounded-full bg-ink-300" />
+              <div className="typing-dot w-1.5 h-1.5 rounded-full bg-brand-300" />
+              <div className="typing-dot w-1.5 h-1.5 rounded-full bg-brand-300" />
+              <div className="typing-dot w-1.5 h-1.5 rounded-full bg-brand-300" />
             </div>
           ) : null}
         </div>

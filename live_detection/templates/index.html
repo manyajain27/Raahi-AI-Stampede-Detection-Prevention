@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Detection — Raahi</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap");
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Poppins", system-ui, sans-serif;
+        background: #f8f9fc;
+        color: #1e293b;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* ─── Header ─── */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        background: #fff;
+        border-bottom: 1px solid #e4e7f0;
+      }
+      .header h1 {
+        font-family: "Outfit", sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+      .header .status {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 12px;
+        color: #64748b;
+      }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 4px;
+        background: #cbd5e1;
+      }
+      .status-dot.green {
+        background: #22c55e;
+      }
+      .status-dot.red {
+        background: #ef4444;
+      }
+      .status-dot.yellow {
+        background: #f59e0b;
+      }
+
+      /* ─── Setup Panel ─── */
+      .setup-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: calc(100vh - 49px);
+        gap: 20px;
+        background: #f8f9fc;
+      }
+      .setup-panel h2 {
+        font-family: "Outfit", sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #4c6ef5, #be4bdb);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .setup-panel p {
+        font-size: 13px;
+        color: #64748b;
+        max-width: 400px;
+        text-align: center;
+        line-height: 1.6;
+      }
+      .setup-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 340px;
+      }
+      .step-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: #fff;
+        border: 1px solid #e4e7f0;
+        border-radius: 10px;
+        color: #334155;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.15s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .step-btn:hover {
+        background: #f1f3f9;
+        border-color: #bac8ff;
+      }
+      .step-btn.done {
+        border-color: #86efac;
+        background: #f0fdf4;
+        color: #16a34a;
+      }
+      .step-btn.active {
+        border-color: #748ffc;
+        color: #4263eb;
+        background: #eef2ff;
+      }
+      .step-btn .check {
+        font-size: 14px;
+      }
+
+      .venue-select {
+        padding: 8px 12px;
+        background: #fff;
+        border: 1px solid #e4e7f0;
+        border-radius: 8px;
+        color: #1e293b;
+        font-size: 13px;
+        width: 340px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+
+      .btn {
+        padding: 10px 24px;
+        border-radius: 10px;
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #4c6ef5, #5c7cfa);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(76, 110, 245, 0.25);
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #4263eb, #4c6ef5);
+      }
+      .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-danger {
+        background: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+      }
+      .btn-danger:hover {
+        background: #fecaca;
+      }
+
+      /* ─── Main Dashboard ─── */
+      .dashboard {
+        display: none;
+        height: calc(100vh - 49px);
+      }
+      .dashboard.active {
+        display: flex;
+      }
+
+      .feeds {
+        flex: 1;
+        display: flex;
+        gap: 1px;
+        background: #e4e7f0;
+      }
+      .feed-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        position: relative;
+      }
+      .feed-label {
+        padding: 8px 14px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+        background: #f8f9fc;
+        border-bottom: 1px solid #e4e7f0;
+      }
+      .feed-img-wrapper {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+        cursor: crosshair;
+        background: #f1f3f9;
+      }
+      .feed-img-wrapper img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      .feed-placeholder {
+        color: #94a3b8;
+        font-size: 13px;
+      }
+
+      /* ─── Side Panel ─── */
+      .side-panel {
+        width: 260px;
+        background: #f8f9fc;
+        border-left: 1px solid #e4e7f0;
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        gap: 12px;
+        overflow-y: auto;
+      }
+      .side-panel h3 {
+        font-family: "Outfit", sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+      }
+      .metric-card {
+        background: #fff;
+        border: 1px solid #e4e7f0;
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .metric-card .label {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+      .metric-card .value {
+        font-family: "Outfit", sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e293b;
+      }
+      .metric-card .value.green {
+        color: #16a34a;
+      }
+      .metric-card .value.yellow {
+        color: #d97706;
+      }
+      .metric-card .value.red {
+        color: #dc2626;
+      }
+
+      /* ─── Calibration banner ─── */
+      .cal-banner {
+        display: none;
+        padding: 10px 20px;
+        background: #eef2ff;
+        border-bottom: 1px solid #bac8ff;
+        font-size: 13px;
+        color: #4263eb;
+        text-align: center;
+        font-weight: 500;
+      }
+      .cal-banner.active {
+        display: block;
+      }
+
+      .instructions-overlay {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
+        padding: 8px 12px;
+        background: rgba(30, 41, 59, 0.85);
+        border-radius: 8px;
+        font-size: 11px;
+        color: #e2e8f0;
+        text-align: center;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="header">
+      <h1>Live Detection</h1>
+      <div class="status">
+        <span><span class="status-dot" id="dotVenue"></span>Venue</span>
+        <span><span class="status-dot" id="dotModel"></span>Model</span>
+        <span><span class="status-dot" id="dotCamera"></span>Camera</span>
+        <span><span class="status-dot" id="dotCalib"></span>Calibrated</span>
+        <span
+          id="personBadge"
+          style="
+            display: none;
+            background: #eef2ff;
+            padding: 3px 10px;
+            border-radius: 20px;
+            color: #4263eb;
+            font-weight: 600;
+            border: 1px solid #bac8ff;
+          "
+        >
+          0 people
+        </span>
+      </div>
+    </div>
+
+    <!-- Calibration banner -->
+    <div class="cal-banner" id="calBanner"></div>
+
+    <!-- Setup (shown first) -->
+    <div class="setup-panel" id="setupPanel">
+      <h2>Setup Live Detection</h2>
+      <p>
+        Connect a camera, load your venue layout, and calibrate the perspective
+        to start real-time crowd monitoring.
+      </p>
+
+      <select class="venue-select" id="venueSelect">
+        <option value="">Select a venue file...</option>
+      </select>
+
+      <div class="setup-steps">
+        <div class="step-btn" id="stepVenue" onclick="loadVenue()">
+          1. Load Venue <span class="check" id="checkVenue">○</span>
+        </div>
+        <div class="step-btn" id="stepModel" onclick="loadModel()">
+          2. Load YOLO Model <span class="check" id="checkModel">○</span>
+        </div>
+        <div class="step-btn" id="stepCamera" onclick="openCamera()">
+          3. Open Camera <span class="check" id="checkCamera">○</span>
+        </div>
+        <div
+          class="step-btn"
+          id="stepCalibrate"
+          onclick="startCalibAndSwitch()"
+        >
+          4. Calibrate & Start <span class="check" id="checkCalib">○</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main dashboard (hidden until streaming) -->
+    <div class="dashboard" id="dashboard">
+      <div class="feeds">
+        <!-- Camera feed -->
+        <div class="feed-panel">
+          <div class="feed-label">Camera Feed</div>
+          <div class="feed-img-wrapper" id="camWrapper">
+            <img id="camImg" src="" alt="Camera" style="display: none" />
+            <span class="feed-placeholder" id="camPlaceholder"
+              >Waiting for camera...</span
+            >
+            <div
+              class="instructions-overlay"
+              id="camInstructions"
+              style="display: none"
+            ></div>
+          </div>
+        </div>
+        <!-- Floor plan -->
+        <div class="feed-panel">
+          <div class="feed-label">Floor Plan — Live Positions</div>
+          <div class="feed-img-wrapper" id="mapWrapper">
+            <img id="mapImg" src="" alt="Floor Plan" style="display: none" />
+            <span class="feed-placeholder" id="mapPlaceholder"
+              >Load a venue first...</span
+            >
+            <div
+              class="instructions-overlay"
+              id="mapInstructions"
+              style="display: none"
+            ></div>
+          </div>
+        </div>
+      </div>
+      <div class="side-panel">
+        <h3>Live Metrics</h3>
+        <div class="metric-card">
+          <div class="label">People Detected</div>
+          <div class="value" id="metricPeople">0</div>
+        </div>
+        <div class="metric-card" id="fallCard" style="border-color: #dc262640">
+          <div class="label">Fall Alerts</div>
+          <div class="value" id="metricFalls" style="color: #666">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Calibration</div>
+          <div class="value green" id="metricCalib" style="font-size: 14px">
+            —
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Status</div>
+          <div class="value green" id="metricStatus" style="font-size: 14px">
+            Initializing
+          </div>
+        </div>
+
+        <div id="fallAlertList"></div>
+
+        <h3 style="margin-top: 8px">Controls</h3>
+        <button
+          class="btn btn-primary"
+          onclick="startCalibration()"
+          id="btnRecalibrate"
+          style="width: 100%"
+        >
+          Recalibrate
+        </button>
+        <button
+          class="btn btn-danger"
+          onclick="stopStream()"
+          style="width: 100%"
+        >
+          Stop Stream
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const socket = io();
+      let venueReady = false,
+        modelReady = false,
+        cameraReady = false,
+        calibReady = false;
+      let calibState = "idle";
+
+      // ─── Status dots ───
+      function updateDot(id, ok) {
+        const dot = document.getElementById(id);
+        dot.className = "status-dot " + (ok ? "green" : "red");
+      }
+
+      // ─── Fetch venues on load ───
+      fetch("/api/venues")
+        .then((r) => r.json())
+        .then((venues) => {
+          const sel = document.getElementById("venueSelect");
+          venues.forEach((v) => {
+            const opt = document.createElement("option");
+            opt.value = v.path;
+            opt.textContent = v.name;
+            sel.appendChild(opt);
+          });
+        });
+
+      // ─── Setup actions ───
+      function loadVenue() {
+        const path = document.getElementById("venueSelect").value;
+        if (!path) {
+          alert("Select a venue first");
+          return;
+        }
+        socket.emit("load_venue", { path });
+      }
+
+      function loadModel() {
+        document.getElementById("stepModel").classList.add("active");
+        socket.emit("load_model");
+      }
+
+      function openCamera() {
+        socket.emit("open_camera", { source: 0 });
+      }
+
+      function startCalibAndSwitch() {
+        if (!venueReady || !modelReady || !cameraReady) {
+          alert("Complete steps 1–3 first");
+          return;
+        }
+        // Switch to dashboard view and start calibration there
+        document.getElementById("setupPanel").style.display = "none";
+        document.getElementById("dashboard").classList.add("active");
+
+        socket.emit("start_stream");
+        socket.emit("start_calibration");
+      }
+
+      function startCalibration() {
+        socket.emit("start_calibration");
+      }
+
+      function stopStream() {
+        socket.emit("stop_stream");
+      }
+
+      // ─── Socket events ───
+      socket.on("venue_loaded", () => {
+        venueReady = true;
+        updateDot("dotVenue", true);
+        document.getElementById("stepVenue").classList.add("done");
+        document.getElementById("checkVenue").textContent = "✓";
+      });
+
+      socket.on("model_loaded", () => {
+        modelReady = true;
+        updateDot("dotModel", true);
+        document.getElementById("stepModel").classList.remove("active");
+        document.getElementById("stepModel").classList.add("done");
+        document.getElementById("checkModel").textContent = "✓";
+      });
+
+      socket.on("camera_opened", (data) => {
+        cameraReady = data.success;
+        updateDot("dotCamera", data.success);
+        document
+          .getElementById("stepCamera")
+          .classList.add(data.success ? "done" : "");
+        document.getElementById("checkCamera").textContent = data.success
+          ? "✓"
+          : "✗";
+      });
+
+      socket.on("calibration_started", () => {
+        calibState = "picking_map";
+        updateCalibUI();
+      });
+
+      socket.on("calibration_update", (data) => {
+        calibState = data.state;
+        if (data.state === "done") {
+          calibReady = true;
+          updateDot("dotCalib", true);
+          document.getElementById("checkCalib").textContent = "✓";
+        }
+        updateCalibUI();
+      });
+
+      function updateCalibUI() {
+        const banner = document.getElementById("calBanner");
+        const mapInst = document.getElementById("mapInstructions");
+        const camInst = document.getElementById("camInstructions");
+
+        if (calibState === "picking_map") {
+          banner.classList.add("active");
+          banner.textContent =
+            "Step 1/2: Click 4 reference points on the floor plan";
+          mapInst.style.display = "block";
+          mapInst.textContent = "Click 4 points that match physical locations";
+          camInst.style.display = "none";
+          document.getElementById("metricCalib").textContent =
+            "Picking map pts...";
+          document.getElementById("metricCalib").className = "value yellow";
+        } else if (calibState === "picking_cam") {
+          banner.textContent =
+            "Step 2/2: Click the same 4 points on the camera feed";
+          mapInst.style.display = "none";
+          camInst.style.display = "block";
+          camInst.textContent = "Click the same 4 matching points here";
+          document.getElementById("metricCalib").textContent =
+            "Picking cam pts...";
+        } else if (calibState === "done") {
+          banner.classList.remove("active");
+          mapInst.style.display = "none";
+          camInst.style.display = "none";
+          document.getElementById("metricCalib").textContent = "Calibrated ✓";
+          document.getElementById("metricCalib").className = "value green";
+          document.getElementById("metricStatus").textContent = "Tracking";
+        } else {
+          banner.classList.remove("active");
+          mapInst.style.display = "none";
+          camInst.style.display = "none";
+        }
+      }
+
+      socket.on("error", (data) => {
+        alert("Error: " + data.message);
+      });
+
+      socket.on("status_msg", (data) => {
+        document.getElementById("metricStatus").textContent = data.message;
+      });
+
+      // ─── Frame rendering ───
+      socket.on("frame", (data) => {
+        if (data.camera) {
+          const camImg = document.getElementById("camImg");
+          camImg.src = "data:image/jpeg;base64," + data.camera;
+          camImg.style.display = "block";
+          document.getElementById("camPlaceholder").style.display = "none";
+        }
+        if (data.floorplan) {
+          const mapImg = document.getElementById("mapImg");
+          mapImg.src = "data:image/jpeg;base64," + data.floorplan;
+          mapImg.style.display = "block";
+          document.getElementById("mapPlaceholder").style.display = "none";
+        }
+
+        document.getElementById("metricPeople").textContent = data.person_count;
+        document.getElementById("personBadge").style.display = "inline";
+        document.getElementById("personBadge").textContent =
+          data.person_count + " people";
+
+        // Color-code person count
+        const val = document.getElementById("metricPeople");
+        if (data.person_count > 20) val.className = "value red";
+        else if (data.person_count > 10) val.className = "value yellow";
+        else val.className = "value green";
+
+        // Fall alerts
+        const fc = data.fall_count || 0;
+        const fallVal = document.getElementById("metricFalls");
+        fallVal.textContent = fc;
+        fallVal.className = "value " + (fc > 0 ? "red" : "");
+        fallVal.style.color = fc > 0 ? "" : "#94a3b8";
+        document.getElementById("fallCard").style.borderColor =
+          fc > 0 ? "#fecaca" : "#e4e7f0";
+        document.getElementById("fallCard").style.background =
+          fc > 0 ? "#fef2f2" : "#fff";
+
+        const alertList = document.getElementById("fallAlertList");
+        if (data.fall_alerts && data.fall_alerts.length > 0) {
+          alertList.innerHTML =
+            '<h3 style="color:#dc2626;margin-bottom:8px;font-family:Outfit,sans-serif;">Active Alerts</h3>' +
+            data.fall_alerts
+              .map(
+                (a) =>
+                  '<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin-bottom:6px;font-size:12px;color:#991b1b;">' +
+                  '<strong style="color:#dc2626;">PERSON DOWN</strong><br>' +
+                  '<span style="color:#64748b;">ID ' +
+                  a.id +
+                  " — Position (" +
+                  a.x +
+                  ", " +
+                  a.y +
+                  ")</span>" +
+                  "</div>",
+              )
+              .join("");
+        } else {
+          alertList.innerHTML = "";
+        }
+      });
+
+      // ─── Click handlers for calibration ───
+      document.getElementById("mapWrapper").addEventListener("click", (e) => {
+        if (calibState !== "picking_map") return;
+        const img = document.getElementById("mapImg");
+        if (!img.naturalWidth) return;
+        const rect = img.getBoundingClientRect();
+        const scaleX = img.naturalWidth / rect.width;
+        const scaleY = img.naturalHeight / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        socket.emit("map_click", { x, y });
+      });
+
+      document.getElementById("camWrapper").addEventListener("click", (e) => {
+        if (calibState !== "picking_cam") return;
+        const img = document.getElementById("camImg");
+        if (!img.naturalWidth) return;
+        const rect = img.getBoundingClientRect();
+        const scaleX = img.naturalWidth / rect.width;
+        const scaleY = img.naturalHeight / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        socket.emit("cam_click", { x, y });
+      });
+
+      // ─── Init dots ───
+      updateDot("dotVenue", false);
+      updateDot("dotModel", false);
+      updateDot("dotCamera", false);
+      updateDot("dotCalib", false);
+    </script>
+  </body>
+</html>

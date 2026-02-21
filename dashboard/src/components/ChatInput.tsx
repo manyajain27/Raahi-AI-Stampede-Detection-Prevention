@@ -68,8 +68,8 @@ export default function ChatInput({ onSend, isLoading, placeholder, onImageUploa
 
       <div
         className={cn(
-          'relative flex items-end gap-1 rounded-2xl border bg-white transition-all duration-200',
-          'focus-within:border-brand-300 focus-within:ring-4 focus-within:ring-brand-50',
+          'relative flex items-end gap-1 rounded-2xl border bg-white transition-all duration-200 shadow-sm',
+          'focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100/50',
           'border-surface-3'
         )}
       >
@@ -83,7 +83,7 @@ export default function ChatInput({ onSend, isLoading, placeholder, onImageUploa
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
-          className="flex-shrink-0 ml-2 mb-2.5 p-2 rounded-lg text-ink-300 hover:text-ink-500 hover:bg-surface-2 transition-colors disabled:opacity-40"
+          className="flex-shrink-0 ml-2 mb-2.5 p-2 rounded-lg text-ink-300 hover:text-brand-500 hover:bg-brand-50 transition-colors disabled:opacity-40"
           title="Upload floor plan image"
         >
           <ImagePlus size={16} />
@@ -99,7 +99,7 @@ export default function ChatInput({ onSend, isLoading, placeholder, onImageUploa
           rows={1}
           className={cn(
             'flex-1 resize-none bg-transparent py-3.5 text-[13.5px] leading-relaxed',
-            'text-ink-900 placeholder:text-ink-300',
+            'text-ink-900 placeholder:text-ink-400',
             'focus:outline-none disabled:opacity-40',
             'min-h-[48px] max-h-[160px]'
           )}
@@ -110,14 +110,14 @@ export default function ChatInput({ onSend, isLoading, placeholder, onImageUploa
           className={cn(
             'flex-shrink-0 m-1.5 p-2.5 rounded-xl transition-all duration-200',
             input.trim() && !isLoading
-              ? 'bg-ink-900 text-white hover:bg-ink-700'
+              ? 'bg-gradient-to-r from-brand-600 to-brand-700 text-white hover:from-brand-700 hover:to-brand-800 shadow-sm'
               : 'bg-surface-2 text-ink-200 cursor-not-allowed'
           )}
         >
           <Send size={15} />
         </button>
       </div>
-      <p className="text-center text-[10.5px] text-ink-300 mt-3 pb-1 tracking-wide">
+      <p className="text-center text-[10.5px] text-ink-400 mt-3 pb-1 tracking-wide">
         Raahi AI can make mistakes. Verify critical safety recommendations.
       </p>
     </div>

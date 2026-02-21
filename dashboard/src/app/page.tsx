@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
+import { cn } from '@/lib/utils';
 import { Message } from '@/types';
 import { ActionType } from '@/components/ChatMessage';
 
@@ -12,21 +13,33 @@ const SUGGESTIONS = [
     title: 'Music Festival',
     description: 'Large outdoor event, 25k+ attendees',
     prompt: "We're organizing an outdoor music festival expecting around 25,000 attendees. Help us plan crowd management.",
+    color: 'from-brand-500/10 to-accent-grape/10',
+    border: 'hover:border-brand-300',
+    accent: 'text-brand-600',
   },
   {
     title: 'Marathon Event',
     description: 'Race route with 50k spectators',
     prompt: "We're hosting a city marathon with 10,000 runners and an estimated 50,000 spectators along the route. How should we manage the crowds?",
+    color: 'from-accent-teal/10 to-accent-cyan/10',
+    border: 'hover:border-accent-teal/60',
+    accent: 'text-accent-teal',
   },
   {
     title: 'Religious Gathering',
     description: 'Temple complex, 100k devotees',
     prompt: "We're expecting a religious gathering of about 100,000 devotees at a temple complex. What crowd safety measures should we implement?",
+    color: 'from-accent-orange/10 to-accent-coral/10',
+    border: 'hover:border-accent-orange/60',
+    accent: 'text-accent-orange',
   },
   {
     title: 'Conference & Expo',
     description: 'Multi-hall corporate event, 5k attendees',
     prompt: "We're organizing a tech conference with 5,000 attendees across multiple halls and exhibition areas. Help us plan the crowd flow.",
+    color: 'from-accent-pink/10 to-brand-500/10',
+    border: 'hover:border-accent-pink/60',
+    accent: 'text-accent-pink',
   },
 ];
 
@@ -200,23 +213,26 @@ export default function HomePage() {
         /* ─── Welcome Screen ─── */
         <div className="flex-1 flex flex-col items-center justify-center px-8">
           <div className="max-w-[600px] w-full text-center mb-14">
-            <h1 className="font-display text-[32px] font-semibold text-ink-900 tracking-[-0.03em] mb-3 leading-tight">
+            <h1 className="font-display text-[32px] font-bold tracking-[-0.03em] mb-3 leading-tight bg-gradient-to-r from-brand-600 via-accent-grape to-accent-pink bg-clip-text text-transparent">
               What event are we<br />planning today?
             </h1>
-            <p className="text-[15px] text-ink-400 leading-relaxed max-w-[420px] mx-auto">
+            <p className="text-[15px] text-ink-500 leading-relaxed max-w-[420px] mx-auto">
               Describe your event and I&apos;ll help you build a crowd
               management strategy from the ground up.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 max-w-[520px] w-full mb-12">
+          <div className="grid grid-cols-2 gap-3 max-w-[520px] w-full mb-12">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s.title}
                 onClick={() => sendMessage(s.prompt)}
-                className="group text-left px-4 py-3.5 rounded-2xl border border-ink-100 bg-white hover:border-brand-200 hover:bg-brand-50/30 transition-all duration-200"
+                className={cn(
+                  'group text-left px-4 py-4 rounded-2xl border border-surface-3/80 bg-gradient-to-br transition-all duration-200',
+                  s.color, s.border
+                )}
               >
-                <p className="text-[13px] font-medium text-ink-900 group-hover:text-brand-600 transition-colors tracking-[-0.01em]">
+                <p className={cn('text-[13px] font-semibold tracking-[-0.01em]', s.accent)}>
                   {s.title}
                 </p>
                 <p className="text-[11.5px] text-ink-400 mt-1 leading-snug">
@@ -239,7 +255,7 @@ export default function HomePage() {
         /* ─── Conversation View ─── */
         <>
           <div className="flex-1 overflow-y-auto px-8 py-10">
-            <div className="max-w-[740px] mx-auto space-y-7">
+            <div className="max-w-[740px] mx-auto space-y-6">
               {messages.map((msg, i) => (
                 <ChatMessage
                   key={i}
@@ -252,7 +268,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="border-t border-surface-3/60 bg-surface-1 py-4">
+          <div className="border-t border-surface-3/60 bg-white/70 backdrop-blur-sm py-4">
             <ChatInput
               onSend={sendMessage}
               isLoading={isLoading}

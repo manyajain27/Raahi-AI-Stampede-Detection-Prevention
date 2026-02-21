@@ -27,14 +27,14 @@ html {
 }
 
 body {
-  background: #f8f8fa;
-  color: #1a1a2e;
+  background: #f8f9fc;
+  color: #1e293b;
   overflow: hidden;
   height: 100vh;
   letter-spacing: -0.01em;
 }
 
-/* Scrollbar — barely visible until hovered */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
 }
@@ -44,18 +44,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d0d0da;
+  background: #cbd5e1;
   border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #b0b0c0;
+  background: #94a3b8;
 }
 
 /* Selection */
 ::selection {
-  background: #c4c0ff;
-  color: #2d1f7a;
+  background: #bac8ff;
+  color: #364fc7;
 }
 
 /* ─── Prose in AI messages ─── */
@@ -67,7 +67,7 @@ body {
   margin-top: 1.1em;
   margin-bottom: 0.45em;
   line-height: 1.35;
-  color: #1a1a2e;
+  color: #1e293b;
   letter-spacing: -0.015em;
 }
 
@@ -84,7 +84,7 @@ body {
 .prose-chat p {
   margin-bottom: 0.7em;
   line-height: 1.7;
-  color: #3a3a52;
+  color: #334155;
 }
 
 .prose-chat p:last-child {
@@ -100,28 +100,28 @@ body {
 .prose-chat li {
   margin-bottom: 0.3em;
   line-height: 1.65;
-  color: #3a3a52;
+  color: #334155;
 }
 
 .prose-chat strong {
   font-weight: 600;
-  color: #1a1a2e;
+  color: #1e293b;
 }
 
 .prose-chat code {
-  background: #f1f1f5;
+  background: #eef2ff;
   padding: 0.15em 0.4em;
   border-radius: 5px;
   font-size: 0.85em;
   font-family: "JetBrains Mono", monospace;
-  color: #6c5ce7;
+  color: #4263eb;
 }
 
 .prose-chat blockquote {
-  border-left: 2px solid #6c5ce7;
+  border-left: 2px solid #4c6ef5;
   padding-left: 1em;
   margin: 0.75em 0;
-  color: #6b6b80;
+  color: #64748b;
   font-style: italic;
 }
 
@@ -169,7 +169,7 @@ body {
 }
 
 .shimmer {
-  background: linear-gradient(90deg, #f1f1f5 25%, #e8e8ee 50%, #f1f1f5 75%);
+  background: linear-gradient(90deg, #f1f3f9 25%, #e4e7f0 50%, #f1f3f9 75%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
