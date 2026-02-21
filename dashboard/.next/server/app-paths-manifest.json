@@ -1,0 +1,6 @@
+{
+  "/page": "app/page.js",
+  "/floor-planner/page": "app/floor-planner/page.js",
+  "/monitoring/page": "app/monitoring/page.js",
+  "/visualizer/page": "app/visualizer/page.js"
+}

@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crowd Simulation - Live View</title>
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f8f9fa;
+        color: #1a1a2e;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Header */
+      .header {
+        background: #ffffff;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 2px solid #e5e7eb;
+      }
+
+      .header h1 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #e94560;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #666;
+      }
+
+      .status-dot.connected {
+        background: #4ade80;
+      }
+
+      .status-dot.disconnected {
+        background: #f87171;
+      }
+
+      /* Main Layout */
+      .main-container {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+
+      /* Control Panel */
+      .control-panel {
+        width: 280px;
+        background: #ffffff;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+        border-right: 1px solid #e5e7eb;
+      }
+
+      .panel-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+      }
+
+      .panel-section h3 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 10px;
+        letter-spacing: 0.5px;
+      }
+
+      /* Venue Selector */
+      .venue-select {
+        width: 100%;
+        padding: 8px 12px;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        color: #1a1a2e;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+
+      .venue-select:hover {
+        border-color: #e94560;
+        background: #f9fafb;
+      }
+
+      /* Scenario Buttons */
+      .scenario-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .scenario-btn {
+        padding: 10px 8px;
+        background: #e5e7eb;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        color: #1a1a2e;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .scenario-btn:hover {
+        background: #d1d5db;
+      }
+
+      .scenario-btn.active {
+        background: #e94560;
+        color: #fff;
+        border-color: #e94560;
+        box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+      }
+
+      /* Control Buttons */
+      .control-buttons {
+        display: flex;
+        gap: 8px;
+      }
+
+      .ctrl-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .ctrl-btn.start {
+        background: #10b981;
+        color: #fff;
+      }
+
+      .ctrl-btn.pause {
+        background: #f59e0b;
+        color: #fff;
+      }
+
+      .ctrl-btn.stop {
+        background: #ef4444;
+        color: #fff;
+      }
+
+      .ctrl-btn.reset {
+        background: #6b7280;
+        color: #fff;
+      }
+
+      .ctrl-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .ctrl-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Speed Control */
+      .speed-control {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .speed-control label {
+        font-size: 0.85rem;
+        color: #6b7280;
+      }
+
+      .speed-slider {
+        flex: 1;
+        -webkit-appearance: none;
+        height: 6px;
+        background: #d1d5db;
+        border-radius: 3px;
+        outline: none;
+      }
+
+      .speed-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #e94560;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .speed-value {
+        min-width: 40px;
+        text-align: right;
+        font-weight: 600;
+        color: #e94560;
+      }
+
+      /* Metrics Panel */
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .metric-card {
+        background: #ffffff;
+        padding: 10px;
+        border-radius: 6px;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+      }
+
+      .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a2e;
+      }
+
+      .metric-label {
+        font-size: 0.7rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        margin-top: 2px;
+      }
+
+      /* Risk Indicator */
+      .risk-indicator {
+        padding: 12px;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .risk-LOW {
+        background: #166534;
+        color: #4ade80;
+      }
+
+      .risk-MODERATE {
+        background: #854d0e;
+        color: #fbbf24;
+      }
+
+      .risk-HIGH {
+        background: #9a3412;
+        color: #fb923c;
+      }
+
+      .risk-CRITICAL {
+        background: #991b1b;
+        color: #f87171;
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      /* Choke Points */
+      .choke-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .choke-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        color: #1a1a2e;
+      }
+
+      .choke-density {
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+      }
+
+      .density-low {
+        background: #166534;
+        color: #4ade80;
+      }
+
+      .density-moderate {
+        background: #854d0e;
+        color: #fbbf24;
+      }
+
+      .density-high {
+        background: #991b1b;
+        color: #f87171;
+      }
+
+      /* Map Container */
+      .map-container {
+        flex: 1;
+        position: relative;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+        background: #f3f4f6;
+      }
+
+      /* Time Display */
+      .time-display {
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        z-index: 1000;
+        border: 1px solid #e5e7eb;
+        color: #1a1a2e;
+      }
+
+      /* Legend */
+      .legend {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 12px 16px;
+        border-radius: 8px;
+        z-index: 1000;
+        font-size: 0.8rem;
+        color: #1a1a2e;
+        border: 1px solid #e5e7eb;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+      }
+
+      .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+
+      .legend-line {
+        width: 20px;
+        height: 3px;
+      }
+
+      /* Agent Colors */
+      .agent-moving {
+        background: #4ade80;
+      }
+
+      .agent-slowed {
+        background: #fbbf24;
+      }
+
+      .agent-stopped {
+        background: #f87171;
+      }
+
+      /* Geometry Colors */
+      .road-color {
+        background: #64748b;
+      }
+
+      .entry-color {
+        background: #22d3ee;
+      }
+
+      .exit-color {
+        background: #a855f7;
+      }
+
+      .choke-color {
+        background: #f97316;
+        border: 2px dashed #f97316;
+        background: transparent;
+      }
+
+      /* Loading Overlay */
+      .loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(248, 249, 250, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+
+      .loading-overlay.hidden {
+        display: none;
+      }
+
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #e5e7eb;
+        border-top-color: #e94560;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="header">
+      <h1>🚶 Crowd Simulation - Live View</h1>
+      <div class="connection-status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- Control Panel -->
+      <aside class="control-panel">
+        <!-- Venue Selection -->
+        <div class="panel-section">
+          <h3>Venue</h3>
+          <select class="venue-select" id="venueSelect">
+            <option value="">-- Select Venue --</option>
+          </select>
+        </div>
+
+        <!-- Scenario Selection -->
+        <div class="panel-section">
+          <h3>Scenario</h3>
+          <div class="scenario-grid">
+            <button class="scenario-btn active" data-scenario="normal">
+              Normal
+            </button>
+            <button class="scenario-btn" data-scenario="high_density">
+              High Density
+            </button>
+            <button class="scenario-btn" data-scenario="surge">Surge</button>
+            <button class="scenario-btn" data-scenario="near_stampede">
+              Near Stampede
+            </button>
+            <button class="scenario-btn" data-scenario="stress_test">
+              Stress Test
+            </button>
+          </div>
+        </div>
+
+        <!-- Simulation Controls -->
+        <div class="panel-section">
+          <h3>Controls</h3>
+          <div class="control-buttons" style="margin-bottom: 12px">
+            <button class="ctrl-btn start" id="btnStart" disabled>
+              ▶ Start
+            </button>
+            <button class="ctrl-btn pause" id="btnPause" disabled>
+              ⏸ Pause
+            </button>
+          </div>
+          <div class="control-buttons">
+            <button class="ctrl-btn stop" id="btnStop" disabled>⏹ Stop</button>
+            <button class="ctrl-btn reset" id="btnReset" disabled>
+              ↺ Reset
+            </button>
+          </div>
+
+          <div class="speed-control" style="margin-top: 12px">
+            <label>Speed:</label>
+            <input
+              type="range"
+              class="speed-slider"
+              id="speedSlider"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value="1"
+            />
+            <span class="speed-value" id="speedValue">1.0x</span>
+          </div>
+        </div>
+
+        <!-- Risk Assessment -->
+        <div class="panel-section">
+          <h3>Risk Level</h3>
+          <div class="risk-indicator risk-LOW" id="riskIndicator">LOW</div>
+        </div>
+
+        <!-- Live Metrics -->
+        <div class="panel-section">
+          <h3>Live Metrics</h3>
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-value" id="metricTotal">0</div>
+              <div class="metric-label">Total Agents</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="metricMoving">0</div>
+              <div class="metric-label">Moving</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="metricDensity">0.0</div>
+              <div class="metric-label">Max Density</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="metricSpeed">0.0</div>
+              <div class="metric-label">Avg Speed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Choke Point Monitoring -->
+        <div class="panel-section">
+          <h3>Choke Points</h3>
+          <div class="choke-list" id="chokeList">
+            <div class="choke-item">
+              <span>No data</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Map Area -->
+      <div class="map-container">
+        <div id="map"></div>
+
+        <div class="time-display">Time: <span id="simTime">0.0</span>s</div>
+
+        <div class="legend">
+          <strong>Legend</strong>
+          <div class="legend-item">
+            <div class="legend-dot agent-moving"></div>
+            <span>Agent (Moving)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot agent-slowed"></div>
+            <span>Agent (Slowed)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot agent-stopped"></div>
+            <span>Agent (Stopped)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line road-color"></div>
+            <span>Pathway</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot entry-color"></div>
+            <span>Entry Point</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot exit-color"></div>
+            <span>Exit Point</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot choke-color"></div>
+            <span>Choke Point</span>
+          </div>
+        </div>
+
+        <div class="loading-overlay" id="loadingOverlay">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+
+    <script>
+      // =================================================================
+      // Application State
+      // =================================================================
+      const state = {
+        socket: null,
+        map: null,
+        venueData: null,
+        selectedScenario: "normal",
+        isRunning: false,
+        isPaused: false,
+        speed: 1.0,
+
+        // Leaflet layers
+        venueLayer: null,
+        agentLayer: null,
+        agentMarkers: new Map(), // agent_id -> marker
+        chokeCircles: new Map(), // choke_id -> circle
+      };
+
+      // Agent colors by state
+      const AGENT_COLORS = {
+        0: "#4ade80", // moving - green
+        1: "#fbbf24", // slowed - yellow
+        2: "#f87171", // stopped - red
+      };
+
+      // =================================================================
+      // Map Initialization
+      // =================================================================
+      function initMap() {
+        // Create map with simple CRS for pixel coordinates
+        state.map = L.map("map", {
+          crs: L.CRS.Simple,
+          minZoom: -2,
+          maxZoom: 10,
+          zoomControl: true,
+        });
+
+        // Initialize empty layers
+        state.venueLayer = L.layerGroup().addTo(state.map);
+        state.agentLayer = L.layerGroup().addTo(state.map);
+
+        // Set initial view
+        state.map.setView([50, 50], 0);
+      }
+
+      // =================================================================
+      // Venue Rendering
+      // =================================================================
+      function renderVenue(data) {
+        // Clear existing
+        state.venueLayer.clearLayers();
+        state.agentLayer.clearLayers();
+        state.agentMarkers.clear();
+        state.chokeCircles.clear();
+
+        state.venueData = data;
+
+        const bounds = data.bounds;
+
+        // Draw roads (pathways)
+        data.roads.forEach((road) => {
+          const latLngs = road.points.map((p) => [p[1], p[0]]); // [y, x] for Leaflet
+          L.polyline(latLngs, {
+            color: "#64748b",
+            weight: Math.max(3, road.width * 2),
+            opacity: 0.8,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(state.venueLayer);
+        });
+
+        // Draw choke points (circles)
+        data.choke_points.forEach((cp) => {
+          const circle = L.circle([cp.y, cp.x], {
+            radius: cp.radius || 3,
+            color: "#f97316",
+            fillColor: "#f97316",
+            fillOpacity: 0.2,
+            weight: 2,
+            dashArray: "5, 5",
+          }).addTo(state.venueLayer);
+
+          circle.bindTooltip(cp.name, { permanent: false });
+          state.chokeCircles.set(cp.id.toString(), circle);
+        });
+
+        // Draw entry points
+        data.entries.forEach((entry) => {
+          L.circleMarker([entry.y, entry.x], {
+            radius: 8,
+            color: "#22d3ee",
+            fillColor: "#22d3ee",
+            fillOpacity: 0.8,
+            weight: 2,
+          })
+            .addTo(state.venueLayer)
+            .bindTooltip(entry.name);
+        });
+
+        // Draw exit points
+        data.exits.forEach((exit) => {
+          L.circleMarker([exit.y, exit.x], {
+            radius: 8,
+            color: "#a855f7",
+            fillColor: "#a855f7",
+            fillOpacity: 0.8,
+            weight: 2,
+          })
+            .addTo(state.venueLayer)
+            .bindTooltip(exit.name);
+        });
+
+        // Draw joints
+        data.joints.forEach((joint) => {
+          L.circleMarker([joint.y, joint.x], {
+            radius: 5,
+            color: "#94a3b8",
+            fillColor: "#94a3b8",
+            fillOpacity: 0.6,
+            weight: 1,
+          }).addTo(state.venueLayer);
+        });
+
+        // Fit map to bounds
+        const mapBounds = [
+          [bounds.min_y, bounds.min_x],
+          [bounds.max_y, bounds.max_x],
+        ];
+        state.map.fitBounds(mapBounds, { padding: [50, 50], maxZoom: 8 });
+
+        // Update choke point list in UI
+        updateChokePointList(data.choke_points);
+
+        hideLoading();
+      }
+
+      // =================================================================
+      // Agent Rendering
+      // =================================================================
+      function updateAgents(agents) {
+        const activeIds = new Set();
+
+        agents.forEach(([id, x, y, stateCode]) => {
+          activeIds.add(id);
+
+          let marker = state.agentMarkers.get(id);
+
+          if (!marker) {
+            // Create new marker
+            marker = L.circleMarker([y, x], {
+              radius: 4,
+              color: AGENT_COLORS[stateCode],
+              fillColor: AGENT_COLORS[stateCode],
+              fillOpacity: 0.9,
+              weight: 1,
+            }).addTo(state.agentLayer);
+
+            state.agentMarkers.set(id, marker);
+          } else {
+            // Update existing marker
+            marker.setLatLng([y, x]);
+            marker.setStyle({
+              color: AGENT_COLORS[stateCode],
+              fillColor: AGENT_COLORS[stateCode],
+            });
+          }
+        });
+
+        // Remove agents that have exited
+        state.agentMarkers.forEach((marker, id) => {
+          if (!activeIds.has(id)) {
+            state.agentLayer.removeLayer(marker);
+            state.agentMarkers.delete(id);
+          }
+        });
+      }
+
+      // =================================================================
+      // UI Updates
+      // =================================================================
+      function updateMetrics(metrics) {
+        document.getElementById("metricTotal").textContent = metrics.total;
+        document.getElementById("metricMoving").textContent = metrics.moving;
+        document.getElementById("metricDensity").textContent =
+          metrics.max_density.toFixed(1);
+        document.getElementById("metricSpeed").textContent =
+          metrics.avg_speed.toFixed(2);
+
+        // Update risk indicator
+        const riskEl = document.getElementById("riskIndicator");
+        riskEl.textContent = metrics.risk;
+        riskEl.className = "risk-indicator risk-" + metrics.risk;
+      }
+
+      function updateChokeRisks(chokeRisks) {
+        state.chokeCircles.forEach((circle, id) => {
+          const density = chokeRisks[id] || 0;
+          let fillColor, fillOpacity;
+
+          if (density > 4) {
+            fillColor = "#f87171";
+            fillOpacity = 0.5;
+          } else if (density > 2) {
+            fillColor = "#fbbf24";
+            fillOpacity = 0.4;
+          } else {
+            fillColor = "#f97316";
+            fillOpacity = 0.2;
+          }
+
+          circle.setStyle({ fillColor, fillOpacity });
+        });
+
+        // Update choke point list
+        const listEl = document.getElementById("chokeList");
+        if (state.venueData) {
+          listEl.innerHTML = state.venueData.choke_points
+            .map((cp) => {
+              const density = chokeRisks[cp.id.toString()] || 0;
+              let densityClass = "density-low";
+              if (density > 4) densityClass = "density-high";
+              else if (density > 2) densityClass = "density-moderate";
+
+              return `
+                        <div class="choke-item">
+                            <span>${cp.name}</span>
+                            <span class="choke-density ${densityClass}">${density.toFixed(1)}</span>
+                        </div>
+                    `;
+            })
+            .join("");
+        }
+      }
+
+      function updateChokePointList(chokePoints) {
+        const listEl = document.getElementById("chokeList");
+        listEl.innerHTML = chokePoints
+          .map(
+            (cp) => `
+                <div class="choke-item">
+                    <span>${cp.name}</span>
+                    <span class="choke-density density-low">0.0</span>
+                </div>
+            `,
+          )
+          .join("");
+      }
+
+      function updateTime(time) {
+        document.getElementById("simTime").textContent = time.toFixed(1);
+      }
+
+      function updateConnectionStatus(connected) {
+        const dot = document.getElementById("statusDot");
+        const text = document.getElementById("statusText");
+
+        if (connected) {
+          dot.className = "status-dot connected";
+          text.textContent = "Connected";
+        } else {
+          dot.className = "status-dot disconnected";
+          text.textContent = "Disconnected";
+        }
+      }
+
+      function updateControlButtons(status) {
+        const btnStart = document.getElementById("btnStart");
+        const btnPause = document.getElementById("btnPause");
+        const btnStop = document.getElementById("btnStop");
+        const btnReset = document.getElementById("btnReset");
+
+        state.isRunning = status.running;
+        state.isPaused = status.paused;
+
+        const venueLoaded =
+          status.venue_loaded !== false && state.venueData !== null;
+
+        btnStart.disabled = !venueLoaded || state.isRunning;
+        btnPause.disabled = !state.isRunning;
+        btnStop.disabled = !state.isRunning;
+        btnReset.disabled = !venueLoaded;
+
+        btnPause.textContent = state.isPaused ? "▶ Resume" : "⏸ Pause";
+      }
+
+      function showLoading() {
+        document.getElementById("loadingOverlay").classList.remove("hidden");
+      }
+
+      function hideLoading() {
+        document.getElementById("loadingOverlay").classList.add("hidden");
+      }
+
+      // =================================================================
+      // WebSocket Connection
+      // =================================================================
+      function connectSocket() {
+        state.socket = io();
+
+        state.socket.on("connect", () => {
+          console.log("Connected to server");
+          updateConnectionStatus(true);
+          loadVenuesList();
+        });
+
+        state.socket.on("disconnect", () => {
+          console.log("Disconnected from server");
+          updateConnectionStatus(false);
+        });
+
+        // Receive venue data
+        state.socket.on("venue_data", (data) => {
+          console.log("Received venue data:", data);
+          renderVenue(data);
+        });
+
+        // Receive simulation frames
+        state.socket.on("frame", (frame) => {
+          updateAgents(frame.agents);
+          updateMetrics(frame.metrics);
+          updateChokeRisks(frame.choke_risks);
+          updateTime(frame.time);
+        });
+
+        // Receive status updates
+        state.socket.on("status", (status) => {
+          console.log("Status update:", status);
+          updateControlButtons(status);
+          if (status.speed !== undefined) {
+            state.speed = status.speed;
+            document.getElementById("speedSlider").value = status.speed;
+            document.getElementById("speedValue").textContent =
+              status.speed.toFixed(1) + "x";
+          }
+        });
+
+        // Simulation ended
+        state.socket.on("simulation_end", (data) => {
+          console.log("Simulation ended:", data.reason);
+          state.isRunning = false;
+          updateControlButtons({ running: false, paused: false });
+        });
+
+        // Error handling
+        state.socket.on("error", (data) => {
+          console.error("Server error:", data.message);
+          alert("Error: " + data.message);
+        });
+      }
+
+      // =================================================================
+      // Load Venues List
+      // =================================================================
+      async function loadVenuesList() {
+        try {
+          const response = await fetch("/api/venues");
+          const venues = await response.json();
+
+          const select = document.getElementById("venueSelect");
+          select.innerHTML = '<option value="">-- Select Venue --</option>';
+
+          venues.forEach((v) => {
+            const option = document.createElement("option");
+            option.value = v.path;
+            option.textContent = v.name;
+            select.appendChild(option);
+          });
+
+          // Check for ?venue= query parameter (from floor planner)
+          const urlParams = new URLSearchParams(window.location.search);
+          const venueParam = urlParams.get("venue");
+
+          if (venueParam) {
+            // Auto-load the venue from query param
+            select.value = venueParam;
+            // If it wasn't in the list, add it
+            if (!select.value) {
+              const option = document.createElement("option");
+              option.value = venueParam;
+              option.textContent = venueParam.split(/[/\\]/).pop();
+              select.appendChild(option);
+              select.value = venueParam;
+            }
+            showLoading();
+            state.socket.emit("load_venue", { path: venueParam });
+          } else if (venues.length > 0) {
+            // Auto-load first venue if available
+            select.value = venues[0].path;
+            showLoading();
+            state.socket.emit("load_venue", { path: venues[0].path });
+          }
+        } catch (error) {
+          console.error("Failed to load venues:", error);
+        }
+      }
+
+      // =================================================================
+      // Event Handlers
+      // =================================================================
+      function setupEventHandlers() {
+        // Venue selection
+        document
+          .getElementById("venueSelect")
+          .addEventListener("change", (e) => {
+            if (e.target.value) {
+              showLoading();
+              state.socket.emit("load_venue", { path: e.target.value });
+            }
+          });
+
+        // Scenario selection
+        document.querySelectorAll(".scenario-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            document
+              .querySelectorAll(".scenario-btn")
+              .forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+            state.selectedScenario = btn.dataset.scenario;
+          });
+        });
+
+        // Control buttons
+        document.getElementById("btnStart").addEventListener("click", () => {
+          state.socket.emit("control", {
+            action: "start",
+            scenario: state.selectedScenario,
+            speed: state.speed,
+          });
+        });
+
+        document.getElementById("btnPause").addEventListener("click", () => {
+          state.socket.emit("control", { action: "pause" });
+        });
+
+        document.getElementById("btnStop").addEventListener("click", () => {
+          state.socket.emit("control", { action: "stop" });
+        });
+
+        document.getElementById("btnReset").addEventListener("click", () => {
+          state.socket.emit("control", { action: "reset" });
+          // Clear agents
+          state.agentLayer.clearLayers();
+          state.agentMarkers.clear();
+          // Reset metrics
+          updateMetrics({
+            total: 0,
+            moving: 0,
+            max_density: 0,
+            avg_speed: 0,
+            risk: "LOW",
+          });
+          updateTime(0);
+        });
+
+        // Speed slider
+        const speedSlider = document.getElementById("speedSlider");
+        const speedValue = document.getElementById("speedValue");
+
+        speedSlider.addEventListener("input", () => {
+          state.speed = parseFloat(speedSlider.value);
+          speedValue.textContent = state.speed.toFixed(1) + "x";
+        });
+
+        speedSlider.addEventListener("change", () => {
+          state.socket.emit("control", { action: "speed", speed: state.speed });
+        });
+      }
+
+      // =================================================================
+      // Initialize
+      // =================================================================
+      document.addEventListener("DOMContentLoaded", () => {
+        initMap();
+        connectSocket();
+        setupEventHandlers();
+        hideLoading();
+      });
+    </script>
+  </body>
+</html>

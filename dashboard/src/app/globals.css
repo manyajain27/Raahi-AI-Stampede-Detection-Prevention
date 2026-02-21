@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap");
+
+:root {
+  --sidebar-width: 260px;
+  --header-height: 0px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family:
+    "Poppins",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+body {
+  background: #f8f8fa;
+  color: #1a1a2e;
+  overflow: hidden;
+  height: 100vh;
+  letter-spacing: -0.01em;
+}
+
+/* Scrollbar — barely visible until hovered */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d0d0da;
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b0b0c0;
+}
+
+/* Selection */
+::selection {
+  background: #c4c0ff;
+  color: #2d1f7a;
+}
+
+/* ─── Prose in AI messages ─── */
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-family: "Outfit", "Poppins", system-ui, sans-serif;
+  font-weight: 600;
+  margin-top: 1.1em;
+  margin-bottom: 0.45em;
+  line-height: 1.35;
+  color: #1a1a2e;
+  letter-spacing: -0.015em;
+}
+
+.prose-chat h1 {
+  font-size: 1.2rem;
+}
+.prose-chat h2 {
+  font-size: 1.1rem;
+}
+.prose-chat h3 {
+  font-size: 0.975rem;
+}
+
+.prose-chat p {
+  margin-bottom: 0.7em;
+  line-height: 1.7;
+  color: #3a3a52;
+}
+
+.prose-chat p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-chat ul,
+.prose-chat ol {
+  margin-left: 1.2em;
+  margin-bottom: 0.7em;
+}
+
+.prose-chat li {
+  margin-bottom: 0.3em;
+  line-height: 1.65;
+  color: #3a3a52;
+}
+
+.prose-chat strong {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.prose-chat code {
+  background: #f1f1f5;
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  font-size: 0.85em;
+  font-family: "JetBrains Mono", monospace;
+  color: #6c5ce7;
+}
+
+.prose-chat blockquote {
+  border-left: 2px solid #6c5ce7;
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: #6b6b80;
+  font-style: italic;
+}
+
+/* ─── Typing indicator ─── */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.typing-dot {
+  animation: blink 1.4s infinite;
+  animation-fill-mode: both;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Smooth iframe transitions */
+.iframe-container {
+  transition: opacity 0.3s ease;
+}
+
+.iframe-container.loading {
+  opacity: 0.5;
+}
+
+/* Under construction shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f1f1f5 25%, #e8e8ee 50%, #f1f1f5 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}

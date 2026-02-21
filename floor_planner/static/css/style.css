@@ -189,3 +189,76 @@ body {
 .delete-btn:hover {
     background: #c0392b;
 }
+
+/* Suggestions Panel */
+#suggestions-panel {
+    margin: 15px 0;
+    padding: 15px;
+    background: #2c3e50;
+    border-radius: 4px;
+    border: 1px solid #3498db;
+}
+
+.suggestion-item {
+    padding: 8px 10px;
+    margin: 6px 0;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    border-left: 4px solid;
+}
+
+.suggestion-barricade {
+    background: rgba(230, 126, 34, 0.15);
+    border-color: #e67e22;
+    color: #f0c27a;
+}
+
+.suggestion-volunteer {
+    background: rgba(52, 152, 219, 0.15);
+    border-color: #3498db;
+    color: #85c1e9;
+}
+
+.suggestion-security {
+    background: rgba(231, 76, 60, 0.15);
+    border-color: #e74c3c;
+    color: #f1948a;
+}
+
+.suggestion-item strong {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 13px;
+}
+
+/* Background Controls */
+#bg-controls {
+    margin: 15px 0;
+    padding: 12px;
+    background: #2c3e50;
+    border-radius: 4px;
+    border: 1px solid #8e44ad;
+}
+
+#bg-controls label {
+    color: #ecf0f1;
+}
+
+#bg-opacity {
+    -webkit-appearance: none;
+    height: 6px;
+    background: #7f8c8d;
+    border-radius: 3px;
+    outline: none;
+    margin-top: 4px;
+}
+
+#bg-opacity::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #8e44ad;
+    border-radius: 50%;
+    cursor: pointer;
+}

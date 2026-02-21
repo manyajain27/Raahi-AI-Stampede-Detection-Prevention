@@ -34,39 +34,39 @@ function initMap() {
     console.log('initMap() called');
     console.log('L (Leaflet) available:', typeof L !== 'undefined');
     console.log('map element:', document.getElementById('map'));
-    
+
     if (typeof L === 'undefined') {
         console.error('Leaflet library not loaded!');
         document.getElementById('map').innerHTML = '<div style="padding: 20px; color: red;">Error: Leaflet library not loaded</div>';
         setTimeout(initMap, 100); // Retry after 100ms
         return;
     }
-    
+
     const mapElement = document.getElementById('map');
     if (!mapElement) {
         console.error('Map element not found!');
         setTimeout(initMap, 100); // Retry after 100ms
         return;
     }
-    
+
     console.log('Map element dimensions:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
-    
+
     try {
         // Remove any existing map instance
         if (map) {
             console.log('Removing existing map...');
             map.remove();
         }
-        
+
         map = L.map('map').setView([12.9716, 77.5946], 15); // Default to Bangalore
-        
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
         }).addTo(map);
-        
+
         map.on('click', onMapClick);
-        
+
         // Force map to resize after a short delay
         setTimeout(() => {
             if (map) {
@@ -74,7 +74,7 @@ function initMap() {
                 console.log('Map size invalidated/refreshed');
             }
         }, 100);
-        
+
         console.log('Map initialized successfully!', map);
     } catch (error) {
         console.error('Error initializing map:', error);
@@ -86,7 +86,7 @@ function initMap() {
 function setActiveTool(toolName) {
     document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
     currentTool = toolName;
-    
+
     // Cancel any pending pathway creation
     if (toolName !== 'pathway' && currentPathwayPoints.length > 0) {
         finishPathway();
@@ -96,7 +96,7 @@ function setActiveTool(toolName) {
 
 function setupEventListeners() {
     console.log('setupEventListeners() called');
-    
+
     document.getElementById('pathway-btn').addEventListener('click', () => {
         setActiveTool('pathway');
         document.getElementById('pathway-btn').classList.add('active');
@@ -154,7 +154,82 @@ function setupEventListeners() {
 
     document.getElementById('confirm-route').addEventListener('click', confirmRouteSelection);
     document.getElementById('cancel-route').addEventListener('click', cancelRouteSelection);
-    
+
+    document.getElementById('visualize-btn').addEventListener('click', () => {
+        if (!origin) {
+            alert('Please set an origin point first!');
+            return;
+        }
+
+        const pathways = elements.filter(e => e.type === 'pathway');
+        const entries = elements.filter(e => e.type === 'entry');
+        const exits = elements.filter(e => e.type === 'exit');
+
+        if (pathways.length === 0) {
+            alert('Please create at least one pathway before running the visualizer.');
+            return;
+        }
+        if (entries.length === 0 || exits.length === 0) {
+            alert('Please add at least one entry and one exit point before running the visualizer.');
+            return;
+        }
+
+        // Build YAML data (reuse export logic)
+        const data = {
+            type: 'outdoor',
+            origin: { lat: origin.lat, lng: origin.lng },
+            pixelsPerMeter: 1,
+            pathways: [],
+            entries: [],
+            exits: [],
+            chokePoints: [],
+            joints: []
+        };
+
+        elements.forEach(el => {
+            if (el.type === 'pathway') {
+                data.pathways.push({ id: el.id, name: el.name, width: el.width, points: el.points.map(p => ({ x: p.x, y: p.y, lat: p.lat, lng: p.lng })) });
+            } else if (el.type === 'entry') {
+                data.entries.push({ id: el.id, name: el.name, x: el.x, y: el.y, lat: el.lat, lng: el.lng, spawnRate: el.spawnRate });
+            } else if (el.type === 'exit') {
+                data.exits.push({ id: el.id, name: el.name, x: el.x, y: el.y, lat: el.lat, lng: el.lng, exitRate: el.exitRate });
+            } else if (el.type === 'choke') {
+                data.chokePoints.push({ id: el.id, name: el.name, x: el.x, y: el.y, lat: el.lat, lng: el.lng });
+            }
+        });
+
+        joints.forEach(joint => {
+            data.joints.push({ id: joint.id, name: joint.name, x: joint.x, y: joint.y, lat: joint.lat, lng: joint.lng, connectedPathways: joint.connectedPathways });
+        });
+
+        const yamlStr = convertToYAML(data);
+
+        fetch('/api/save-and-visualize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ yaml: yamlStr, filename: 'outdoor_venue.yaml' })
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'raahi_navigate',
+                            path: '/visualizer',
+                            venuePath: result.filepath
+                        }, '*');
+                    } else {
+                        window.open(result.visualizer_url, '_blank');
+                    }
+                } else {
+                    alert('Error saving venue: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+    });
+
     console.log('Event listeners setup complete');
 }
 
@@ -162,9 +237,9 @@ function setupEventListeners() {
 async function onMapClick(e) {
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
-    
+
     console.log('Map clicked at:', lat, lng, 'currentTool:', currentTool);
-    
+
     if (currentTool === 'origin') {
         console.log('Setting origin...');
         setOrigin(lat, lng);
@@ -181,30 +256,30 @@ async function onMapClick(e) {
 function setOrigin(lat, lng) {
     console.log('setOrigin called with:', lat, lng);
     origin = { lat, lng };
-    
+
     if (originMarker) {
         map.removeLayer(originMarker);
     }
-    
+
     const icon = L.divIcon({
         className: 'origin-marker',
         iconSize: [20, 20],
         iconAnchor: [10, 10]
     });
-    
+
     originMarker = L.marker([lat, lng], { icon, draggable: true })
         .addTo(map)
         .bindPopup('Origin Point');
-    
+
     console.log('Origin marker created:', originMarker);
-    
+
     originMarker.on('dragend', (e) => {
         const pos = e.target.getLatLng();
         origin = { lat: pos.lat, lng: pos.lng };
         updateOriginDisplay();
         redrawAll(); // Recalculate offsets
     });
-    
+
     updateOriginDisplay();
     setActiveTool(null);
 }
@@ -217,25 +292,25 @@ function updateOriginDisplay() {
 // Convert lat/lng to meters offset from origin
 function latLngToMeters(lat, lng) {
     if (!origin) return { x: 0, y: 0 };
-    
+
     const earthRadius = 6371000; // meters
     const dLat = (lat - origin.lat) * Math.PI / 180;
     const dLng = (lng - origin.lng) * Math.PI / 180;
-    
+
     const x = dLng * earthRadius * Math.cos(origin.lat * Math.PI / 180);
     const y = dLat * earthRadius;
-    
+
     return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
 }
 
 // Convert meters offset to lat/lng
 function metersToLatLng(x, y) {
     if (!origin) return { lat: 0, lng: 0 };
-    
+
     const earthRadius = 6371000;
     const lat = origin.lat + (y / earthRadius) * (180 / Math.PI);
     const lng = origin.lng + (x / (earthRadius * Math.cos(origin.lat * Math.PI / 180))) * (180 / Math.PI);
-    
+
     return { lat, lng };
 }
 
@@ -245,9 +320,9 @@ async function handlePathwayClick(lat, lng) {
         alert('Please set an origin point first!');
         return;
     }
-    
+
     showLoading();
-    
+
     try {
         // Snap to nearest road
         const snapped = await snapToRoad(lat, lng);
@@ -256,7 +331,7 @@ async function handlePathwayClick(lat, lng) {
             alert('Could not find a road nearby. Please click closer to a road.');
             return;
         }
-        
+
         if (currentPathwayPoints.length === 0) {
             // First point
             currentPathwayPoints.push(snapped);
@@ -266,9 +341,9 @@ async function handlePathwayClick(lat, lng) {
             // Calculate routes to this point
             const lastPoint = currentPathwayPoints[currentPathwayPoints.length - 1];
             const routes = await getRoutes(lastPoint, snapped);
-            
+
             hideLoading();
-            
+
             if (routes && routes.length > 0) {
                 showRouteOptions(routes, snapped);
             } else {
@@ -289,7 +364,7 @@ async function snapToRoad(lat, lng) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat, lng })
         });
-        
+
         if (response.ok) {
             return await response.json();
         }
@@ -307,7 +382,7 @@ async function getRoutes(start, end) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ start, end })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             return data.routes || [];
@@ -321,10 +396,10 @@ async function getRoutes(start, end) {
 
 function showRouteOptions(routes, endPoint) {
     clearPreviewRoutes();
-    
+
     const container = document.getElementById('route-options');
     container.innerHTML = '';
-    
+
     routes.forEach((route, index) => {
         // Draw route on map
         const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
@@ -333,14 +408,14 @@ function showRouteOptions(routes, endPoint) {
             weight: 6,
             opacity: 0.7
         }).addTo(map);
-        
+
         polyline.on('click', () => selectRoute(index));
         mapLayers.previewRoutes.push(polyline);
-        
+
         // Add option to panel
         const distance = (route.distance / 1000).toFixed(2);
         const duration = Math.round(route.duration / 60);
-        
+
         const option = document.createElement('div');
         option.className = 'route-option';
         option.dataset.index = index;
@@ -351,22 +426,22 @@ function showRouteOptions(routes, endPoint) {
         option.addEventListener('click', () => selectRoute(index));
         container.appendChild(option);
     });
-    
+
     // Store for later use
     previewRoutes = routes;
     window.pendingEndPoint = endPoint;
-    
+
     document.getElementById('route-selector').style.display = 'block';
 }
 
 function selectRoute(index) {
     selectedRouteIndex = index;
-    
+
     // Update UI
     document.querySelectorAll('.route-option').forEach((opt, i) => {
         opt.classList.toggle('selected', i === index);
     });
-    
+
     // Highlight selected route
     mapLayers.previewRoutes.forEach((polyline, i) => {
         polyline.setStyle({
@@ -384,30 +459,30 @@ function confirmRouteSelection() {
         alert('Please select a route first.');
         return;
     }
-    
+
     const route = previewRoutes[selectedRouteIndex];
     const endPoint = window.pendingEndPoint;
-    
+
     // Convert route coordinates to pathway points
     const routeCoords = route.geometry.coordinates.map(c => ({
         lat: c[1],
         lng: c[0]
     }));
-    
+
     // Add route points to current pathway
     routeCoords.forEach(coord => {
         currentPathwayPoints.push(coord);
     });
-    
+
     // Add marker at end point
     addTempMarker(endPoint.lat, endPoint.lng);
-    
+
     // Clear route selection UI
     clearPreviewRoutes();
     document.getElementById('route-selector').style.display = 'none';
     selectedRouteIndex = -1;
     previewRoutes = [];
-    
+
     // Draw the confirmed pathway segment
     redrawCurrentPathway();
 }
@@ -430,7 +505,7 @@ function addTempMarker(lat, lng) {
         iconSize: [12, 12],
         iconAnchor: [6, 6]
     });
-    
+
     const marker = L.marker([lat, lng], { icon }).addTo(map);
     mapLayers.markers.push(marker);
 }
@@ -440,7 +515,7 @@ function redrawCurrentPathway() {
     if (window.currentPathwayLine) {
         map.removeLayer(window.currentPathwayLine);
     }
-    
+
     if (currentPathwayPoints.length > 1) {
         const coords = currentPathwayPoints.map(p => [p.lat, p.lng]);
         window.currentPathwayLine = L.polyline(coords, {
@@ -458,7 +533,7 @@ function finishPathway() {
             const offset = latLngToMeters(p.lat, p.lng);
             return { x: offset.x, y: offset.y, lat: p.lat, lng: p.lng };
         });
-        
+
         const pathway = {
             id: nextId++,
             type: 'pathway',
@@ -466,33 +541,27 @@ function finishPathway() {
             width: 2.0,
             points: points
         };
-        
+
         elements.push(pathway);
     }
-    
+
     // Clear temp markers
     mapLayers.markers.forEach(m => map.removeLayer(m));
     mapLayers.markers = [];
-    
+
     if (window.currentPathwayLine) {
         map.removeLayer(window.currentPathwayLine);
         window.currentPathwayLine = null;
     }
-    
+
     currentPathwayPoints = [];
-    
+
     detectJoints();
     redrawAll();
     updateStats();
 }
 
-// Double-click to finish pathway
-map.on('dblclick', (e) => {
-    if (currentTool === 'pathway' && currentPathwayPoints.length > 1) {
-        e.originalEvent.preventDefault();
-        finishPathway();
-    }
-});
+// Double-click to finish pathway (registered in initializeOutdoorEditor)
 
 // ==================== POINT PLACEMENT ====================
 async function handlePointPlacement(lat, lng, type) {
@@ -500,15 +569,15 @@ async function handlePointPlacement(lat, lng, type) {
         alert('Please set an origin point first!');
         return;
     }
-    
+
     // Check if point is on a pathway
     if (!isPointOnAnyPathway(lat, lng)) {
         alert(`${type.charAt(0).toUpperCase() + type.slice(1)} points must be placed on a pathway!`);
         return;
     }
-    
+
     const offset = latLngToMeters(lat, lng);
-    
+
     const element = {
         id: nextId++,
         type: type,
@@ -517,7 +586,7 @@ async function handlePointPlacement(lat, lng, type) {
         lat: lat,
         lng: lng
     };
-    
+
     if (type === 'entry') {
         element.name = `Entry ${entryCounter++}`;
         element.spawnRate = 1.0;
@@ -527,7 +596,7 @@ async function handlePointPlacement(lat, lng, type) {
     } else if (type === 'choke') {
         element.name = `Choke ${chokeCounter++}`;
     }
-    
+
     elements.push(element);
     redrawAll();
     updateStats();
@@ -539,14 +608,14 @@ function isPointOnAnyPathway(lat, lng, threshold = 0.0001) {
             for (let i = 1; i < el.points.length; i++) {
                 const p1 = el.points[i - 1];
                 const p2 = el.points[i];
-                
+
                 // Use lat/lng for distance calculation
                 const dist = distanceToSegmentLatLng(
                     lat, lng,
                     p1.lat, p1.lng,
                     p2.lat, p2.lng
                 );
-                
+
                 if (dist < threshold) {
                     return true;
                 }
@@ -561,12 +630,12 @@ function distanceToSegmentLatLng(lat, lng, lat1, lng1, lat2, lng2) {
     const B = lng - lng1;
     const C = lat2 - lat1;
     const D = lng2 - lng1;
-    
+
     const dot = A * C + B * D;
     const lenSq = C * C + D * D;
     let param = -1;
     if (lenSq !== 0) param = dot / lenSq;
-    
+
     let closeLat, closeLng;
     if (param < 0) {
         closeLat = lat1;
@@ -578,7 +647,7 @@ function distanceToSegmentLatLng(lat, lng, lat1, lng1, lat2, lng2) {
         closeLat = lat1 + param * C;
         closeLng = lng1 + param * D;
     }
-    
+
     return Math.sqrt(Math.pow(lat - closeLat, 2) + Math.pow(lng - closeLng, 2));
 }
 
@@ -586,19 +655,19 @@ function distanceToSegmentLatLng(lat, lng, lat1, lng1, lat2, lng2) {
 function detectJoints() {
     joints = [];
     jointCounter = 1;
-    
+
     const pathways = elements.filter(e => e.type === 'pathway');
     const jointThreshold = 0.00005; // ~5 meters in lat/lng
-    
+
     const jointMap = new Map();
-    
+
     // Check for endpoint connections
     for (let pathway of pathways) {
         if (!pathway.points || pathway.points.length < 2) continue;
-        
+
         const startPoint = pathway.points[0];
         const endPoint = pathway.points[pathway.points.length - 1];
-        
+
         [startPoint, endPoint].forEach(point => {
             let found = false;
             for (let [key, joint] of jointMap) {
@@ -623,28 +692,28 @@ function detectJoints() {
             }
         });
     }
-    
+
     // Check for T-junctions
     for (let i = 0; i < pathways.length; i++) {
         for (let j = 0; j < pathways.length; j++) {
             if (i === j) continue;
-            
+
             const p1 = pathways[i];
             const p2 = pathways[j];
-            
+
             const endpoints = [p1.points[0], p1.points[p1.points.length - 1]];
-            
+
             for (let endpoint of endpoints) {
                 for (let b = 1; b < p2.points.length; b++) {
                     const segStart = p2.points[b - 1];
                     const segEnd = p2.points[b];
-                    
+
                     const dist = distanceToSegmentLatLng(
                         endpoint.lat, endpoint.lng,
                         segStart.lat, segStart.lng,
                         segEnd.lat, segEnd.lng
                     );
-                    
+
                     if (dist < jointThreshold) {
                         let found = false;
                         for (let [key, joint] of jointMap) {
@@ -675,7 +744,7 @@ function detectJoints() {
             }
         }
     }
-    
+
     // Convert to joints array
     for (let [key, joint] of jointMap) {
         if (joint.connectedPathways.length >= 2) {
@@ -696,21 +765,21 @@ function detectJoints() {
 function getLargestPathwayNetwork() {
     const pathways = elements.filter(e => e.type === 'pathway');
     if (pathways.length === 0) return [];
-    
+
     const networks = [];
     const visited = new Set();
-    
+
     for (let pathway of pathways) {
         if (visited.has(pathway.id)) continue;
-        
+
         const network = [];
         const queue = [pathway];
         visited.add(pathway.id);
-        
+
         while (queue.length > 0) {
             const current = queue.shift();
             network.push(current);
-            
+
             for (let other of pathways) {
                 if (visited.has(other.id)) continue;
                 if (arePathwaysConnected(current, other)) {
@@ -719,10 +788,10 @@ function getLargestPathwayNetwork() {
                 }
             }
         }
-        
+
         networks.push(network);
     }
-    
+
     return networks.reduce((largest, current) =>
         current.length > largest.length ? current : largest, []);
 }
@@ -744,27 +813,27 @@ function redrawAll() {
     mapLayers.pathways = [];
     mapLayers.markers.forEach(marker => map.removeLayer(marker));
     mapLayers.markers = [];
-    
+
     const largestNetwork = getLargestPathwayNetwork();
     const largestNetworkIds = new Set(largestNetwork.map(p => p.id));
-    
+
     // Draw pathways
     elements.filter(e => e.type === 'pathway').forEach(pathway => {
         if (!pathway.points || pathway.points.length < 2) return;
-        
+
         const coords = pathway.points.map(p => [p.lat, p.lng]);
         const isConnected = largestNetworkIds.has(pathway.id);
-        
+
         const polyline = L.polyline(coords, {
             color: isConnected ? CONNECTED_COLOR : DISCONNECTED_COLOR,
             weight: (pathway.width || 2) * 3,
             opacity: 0.8
         }).addTo(map);
-        
+
         polyline.on('click', () => selectElement(pathway));
         mapLayers.pathways.push(polyline);
     });
-    
+
     // Draw joints
     joints.forEach(joint => {
         const icon = L.divIcon({
@@ -773,30 +842,30 @@ function redrawAll() {
             iconAnchor: [8 + joint.connectedPathways.length, 8 + joint.connectedPathways.length],
             html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:bold;">${joint.connectedPathways.length}</div>`
         });
-        
+
         const marker = L.marker([joint.lat, joint.lng], { icon })
             .addTo(map);
         marker.on('click', () => selectElement(joint));
         mapLayers.markers.push(marker);
     });
-    
+
     // Draw other elements
     elements.filter(e => e.type !== 'pathway').forEach(el => {
         let className = '';
         if (el.type === 'entry') className = 'entry-marker';
         else if (el.type === 'exit') className = 'exit-marker';
         else if (el.type === 'choke') className = 'choke-marker';
-        
+
         const icon = L.divIcon({
             className: className,
             iconSize: [16, 16],
             iconAnchor: [8, 8]
         });
-        
+
         const marker = L.marker([el.lat, el.lng], { icon, draggable: true })
             .addTo(map)
             .bindPopup(el.name);
-        
+
         marker.on('click', () => selectElement(el));
         marker.on('dragend', (e) => {
             const pos = e.target.getLatLng();
@@ -811,7 +880,7 @@ function redrawAll() {
                 alert('Point must stay on a pathway!');
             }
         });
-        
+
         mapLayers.markers.push(marker);
     });
 }
@@ -826,7 +895,7 @@ function showPropertyEditor(element) {
     const editor = document.getElementById('property-editor');
     const content = document.getElementById('property-content');
     content.innerHTML = '';
-    
+
     if (element.type === 'pathway') {
         content.innerHTML = `
             <div class="property-group">
@@ -876,7 +945,7 @@ function showPropertyEditor(element) {
             const p = elements.find(e => e.id === id);
             return p ? p.name : `Pathway ${id}`;
         }).join(', ');
-        
+
         content.innerHTML = `
             <div class="property-group">
                 <label>Name:</label>
@@ -888,7 +957,7 @@ function showPropertyEditor(element) {
             </div>
         `;
     }
-    
+
     // Add event listeners
     const nameInput = document.getElementById('prop-name');
     if (nameInput) {
@@ -896,7 +965,7 @@ function showPropertyEditor(element) {
             element.name = e.target.value;
         });
     }
-    
+
     const widthInput = document.getElementById('prop-width');
     if (widthInput) {
         widthInput.addEventListener('input', (e) => {
@@ -904,21 +973,21 @@ function showPropertyEditor(element) {
             redrawAll();
         });
     }
-    
+
     const spawnRateInput = document.getElementById('prop-spawn-rate');
     if (spawnRateInput) {
         spawnRateInput.addEventListener('input', (e) => {
             element.spawnRate = parseFloat(e.target.value);
         });
     }
-    
+
     const exitRateInput = document.getElementById('prop-exit-rate');
     if (exitRateInput) {
         exitRateInput.addEventListener('input', (e) => {
             element.exitRate = parseFloat(e.target.value);
         });
     }
-    
+
     editor.style.display = 'block';
 }
 
@@ -952,7 +1021,7 @@ function exportToYAML() {
         alert('Please set an origin point before exporting.');
         return;
     }
-    
+
     const data = {
         type: 'outdoor',
         origin: {
@@ -966,7 +1035,7 @@ function exportToYAML() {
         chokePoints: [],
         joints: []
     };
-    
+
     elements.forEach(el => {
         if (el.type === 'pathway') {
             data.pathways.push({
@@ -1006,7 +1075,7 @@ function exportToYAML() {
             });
         }
     });
-    
+
     joints.forEach(joint => {
         data.joints.push({
             id: joint.id,
@@ -1018,7 +1087,7 @@ function exportToYAML() {
             connectedPathways: joint.connectedPathways
         });
     });
-    
+
     const yamlStr = convertToYAML(data);
     const blob = new Blob([yamlStr], { type: 'text/yaml' });
     const url = URL.createObjectURL(blob);
@@ -1032,7 +1101,7 @@ function exportToYAML() {
 function convertToYAML(obj, indent = 0) {
     let yaml = '';
     const spaces = '  '.repeat(indent);
-    
+
     for (let key in obj) {
         const value = obj[key];
         if (Array.isArray(value)) {
@@ -1080,21 +1149,21 @@ function importFromYAML(file) {
         try {
             const yamlText = e.target.result;
             const data = parseYAML(yamlText);
-            
+
             // Check if this is an outdoor file
             if (data.type && data.type !== 'outdoor') {
                 alert('This appears to be an indoor venue file. Please use the Indoor Editor.');
                 return;
             }
-            
+
             clearAll();
-            
+
             // Set origin
             if (data.origin) {
                 setOrigin(data.origin.lat, data.origin.lng);
                 map.setView([data.origin.lat, data.origin.lng], 15);
             }
-            
+
             // Load pathways
             if (data.pathways) {
                 data.pathways.forEach(p => {
@@ -1108,7 +1177,7 @@ function importFromYAML(file) {
                     pathwayCounter++;
                 });
             }
-            
+
             // Load entries
             if (data.entries) {
                 data.entries.forEach(e => {
@@ -1125,7 +1194,7 @@ function importFromYAML(file) {
                     entryCounter++;
                 });
             }
-            
+
             // Load exits
             if (data.exits) {
                 data.exits.forEach(e => {
@@ -1142,7 +1211,7 @@ function importFromYAML(file) {
                     exitCounter++;
                 });
             }
-            
+
             // Load choke points
             if (data.chokePoints) {
                 data.chokePoints.forEach(c => {
@@ -1158,7 +1227,7 @@ function importFromYAML(file) {
                     chokeCounter++;
                 });
             }
-            
+
             detectJoints();
             redrawAll();
             updateStats();
@@ -1183,25 +1252,25 @@ function parseYAML(yamlText) {
         chokePoints: [],
         joints: []
     };
-    
+
     let currentSection = null;
     let currentObject = null;
     let currentSubArray = null;
     let currentSubObject = null;
-    
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const trimmed = line.trim();
-        
+
         if (!trimmed || trimmed.startsWith('#')) continue;
-        
+
         const indent = line.search(/\S/);
-        
+
         if (indent === 0 && trimmed.includes(':')) {
             const colonIndex = trimmed.indexOf(':');
             const key = trimmed.substring(0, colonIndex).trim();
             const value = trimmed.substring(colonIndex + 1).trim();
-            
+
             if (key === 'origin') {
                 result.origin = {};
                 currentSection = 'origin';
@@ -1234,7 +1303,7 @@ function parseYAML(yamlText) {
             const colonIndex = trimmed.indexOf(':');
             const key = trimmed.substring(0, colonIndex).trim();
             const value = trimmed.substring(colonIndex + 1).trim();
-            
+
             if (value) {
                 currentObject[key] = isNaN(value) ? value : parseFloat(value);
             } else {
@@ -1245,7 +1314,7 @@ function parseYAML(yamlText) {
         }
         else if (indent === 8 && trimmed.startsWith('-') && currentSubArray) {
             const content = trimmed.substring(1).trim();
-            
+
             if (content === '') {
                 currentSubObject = {};
                 currentSubArray.push(currentSubObject);
@@ -1260,7 +1329,7 @@ function parseYAML(yamlText) {
             currentSubObject[key] = isNaN(value) ? value : parseFloat(value);
         }
     }
-    
+
     return result;
 }
 
@@ -1269,17 +1338,17 @@ function clearAll() {
     elements = [];
     joints = [];
     currentPathwayPoints = [];
-    
+
     mapLayers.pathways.forEach(layer => map.removeLayer(layer));
     mapLayers.pathways = [];
     mapLayers.markers.forEach(marker => map.removeLayer(marker));
     mapLayers.markers = [];
-    
+
     if (window.currentPathwayLine) {
         map.removeLayer(window.currentPathwayLine);
         window.currentPathwayLine = null;
     }
-    
+
     clearPreviewRoutes();
     hidePropertyEditor();
     updateStats();
@@ -1288,22 +1357,22 @@ function clearAll() {
 function searchLocation() {
     const query = document.getElementById('location-search').value;
     if (!query) return;
-    
+
     console.log('searchLocation called, map:', map);
-    
+
     if (!map) {
         console.error('Map is not initialized!');
         alert('Map not initialized yet. Please wait a moment and try again.');
         return;
     }
-    
+
     const resultsContainer = document.getElementById('search-results');
     const resultsList = document.getElementById('search-results-list');
-    
+
     // Show loading state
     resultsList.innerHTML = '<p style="color: #95a5a6; padding: 10px;">Searching...</p>';
     resultsContainer.style.display = 'block';
-    
+
     fetch('/api/geocode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1336,25 +1405,25 @@ function searchLocation() {
 function displaySearchResults(results) {
     const resultsList = document.getElementById('search-results-list');
     resultsList.innerHTML = '';
-    
+
     results.forEach((result, index) => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
-        
+
         // Parse the display name - take the first part as name, rest as type/location
         const nameParts = result.display_name.split(',');
         const name = nameParts[0].trim();
         const location = nameParts.slice(1, 4).join(',').trim();
-        
+
         item.innerHTML = `
             <div class="result-name">${name}</div>
             <div class="result-type">${location || result.type || 'Location'}</div>
         `;
-        
+
         item.addEventListener('click', () => {
             selectSearchResult(result);
         });
-        
+
         resultsList.appendChild(item);
     });
 }
@@ -1362,25 +1431,25 @@ function displaySearchResults(results) {
 function selectSearchResult(result) {
     const lat = parseFloat(result.lat);
     const lon = parseFloat(result.lon);
-    
+
     console.log('Selected location:', result.display_name, lat, lon);
-    
+
     // Move map to selected location
     map.setView([lat, lon], 16);
-    
+
     // Add a temporary marker to show the location
     const marker = L.marker([lat, lon])
         .addTo(map)
         .bindPopup(result.display_name)
         .openPopup();
-    
+
     // Remove marker after 5 seconds
     setTimeout(() => {
         if (map.hasLayer(marker)) {
             map.removeLayer(marker);
         }
     }, 5000);
-    
+
     // Hide search results
     document.getElementById('search-results').style.display = 'none';
 }
@@ -1396,7 +1465,7 @@ function hideLoading() {
 // ==================== INITIALIZE ====================
 function initializeOutdoorEditor() {
     console.log('initializeOutdoorEditor() called');
-    
+
     // Initialize map
     try {
         map = L.map('map').setView([12.9716, 77.5946], 15);
@@ -1405,12 +1474,18 @@ function initializeOutdoorEditor() {
             maxZoom: 19
         }).addTo(map);
         map.on('click', onMapClick);
+        map.on('dblclick', (e) => {
+            if (currentTool === 'pathway' && currentPathwayPoints.length > 1) {
+                e.originalEvent.preventDefault();
+                finishPathway();
+            }
+        });
         console.log('Map initialized and click handler attached');
     } catch (e) {
         console.error('Map init failed:', e);
         return;
     }
-    
+
     // Set up event listeners
     try {
         setupEventListeners();
@@ -1418,13 +1493,13 @@ function initializeOutdoorEditor() {
     } catch (e) {
         console.error('setupEventListeners failed:', e);
     }
-    
+
     // Update stats
     try {
         updateStats();
     } catch (e) {
         console.error('updateStats failed:', e);
     }
-    
+
     console.log('Initialization complete!');
 }
