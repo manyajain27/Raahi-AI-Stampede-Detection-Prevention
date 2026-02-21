@@ -1,7 +1,6 @@
 {
   "/page": "app/page.js",
   "/floor-planner/page": "app/floor-planner/page.js",
-  "/monitoring/page": "app/monitoring/page.js",
   "/visualizer/page": "app/visualizer/page.js",
-  "/api/chat/route": "app/api/chat/route.js"
+  "/monitoring/page": "app/monitoring/page.js"
 }

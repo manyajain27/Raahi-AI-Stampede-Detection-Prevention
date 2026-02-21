@@ -85,7 +85,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="px-7 py-6">
         <p className="text-[10px] text-ink-300 font-medium tracking-wide">
-          v1.0 &middot; K-Hacks 2025
+          v1.0 &middot; LOC 2026
         </p>
       </div>
     </aside>
