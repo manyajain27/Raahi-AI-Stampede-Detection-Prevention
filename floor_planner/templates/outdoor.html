@@ -5,26 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Outdoor Venue Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/outdoor.css') }}">
-    <style>
-        /* Inline critical styles to ensure map visibility */
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-
-        #content {
-            height: calc(100vh - 60px);
-        }
-
-        #map {
-            height: 100% !important;
-            width: 100%;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/outdoor.css') }}?v=2">
 </head>
 
 <body>
@@ -39,9 +22,10 @@
         <button id="export-btn" class="tool-btn">Export YAML</button>
         <button id="import-btn" class="tool-btn">Import YAML</button>
         <input type="file" id="file-input" accept=".yaml,.yml" style="display: none;">
-        <button id="visualize-btn" class="tool-btn" style="background: #27ae60; font-weight: bold;">▶ Run in
+
+        <button id="visualize-btn" class="tool-btn" style="background: var(--success); color: white;">▶ Run in
             Visualizer</button>
-        <a href="/" class="tool-btn nav-link">Indoor Editor</a>
+        <a href="/" class="tool-btn nav-link">Switch to Indoor</a>
         <span class="instructions">Click on roads to place points</span>
     </div>
 
@@ -49,21 +33,22 @@
         <div id="map"></div>
 
         <div id="right-panel">
-            <h3>Outdoor Venue Editor</h3>
+            <h3>Outdoor Editor</h3>
 
             <div id="origin-info">
                 <h4>Origin Point</h4>
-                <p>Lat: <span id="origin-lat">Not set</span></p>
-                <p>Lng: <span id="origin-lng">Not set</span></p>
+                <p><span>Lat:</span> <strong id="origin-lat">Not set</strong></p>
+                <p><span>Lng:</span> <strong id="origin-lng">Not set</strong></p>
                 <p class="hint">Click "Set Origin" then click on map</p>
             </div>
 
             <div id="stats">
-                <p><strong>Total Pathways:</strong> <span id="pathway-count">0</span></p>
-                <p><strong>Entry Points:</strong> <span id="entry-count">0</span></p>
-                <p><strong>Exit Points:</strong> <span id="exit-count">0</span></p>
-                <p><strong>Choke Points:</strong> <span id="choke-count">0</span></p>
-                <p><strong>Joints:</strong> <span id="joint-count">0</span></p>
+                <h4>Venue Stats</h4>
+                <p><span>Total Pathways:</span> <strong id="pathway-count">0</strong></p>
+                <p><span>Entry Points:</span> <strong id="entry-count">0</strong></p>
+                <p><span>Exit Points:</span> <strong id="exit-count">0</strong></p>
+                <p><span>Choke Points:</span> <strong id="choke-count">0</strong></p>
+                <p><span>Joints:</span> <strong id="joint-count">0</strong></p>
             </div>
 
             <div id="property-editor" style="display: none;">
@@ -73,49 +58,46 @@
 
             <div id="route-selector" style="display: none;">
                 <h4>Select Route</h4>
-                <p class="hint">Multiple routes found. Click on a route to select it.</p>
+                <p class="hint" style="margin-bottom:8px;">Multiple routes found. Click one below.</p>
                 <div id="route-options"></div>
-                <button id="confirm-route" class="action-btn">Confirm Selected</button>
+                <button id="confirm-route" class="action-btn" style="margin-top: 10px;">Confirm Selected</button>
                 <button id="cancel-route" class="action-btn cancel">Cancel</button>
-            </div>
-
-            <div id="info">
-                <h4>Instructions</h4>
-                <ul>
-                    <li><strong>Set Origin:</strong> First set a reference point</li>
-                    <li><strong>Pathway:</strong> Click on roads to create connected paths</li>
-                    <li><strong>Entry/Exit/Choke:</strong> Place on existing pathways</li>
-                    <li><strong>Select:</strong> Click to edit properties</li>
-                </ul>
             </div>
 
             <div id="search-box">
                 <h4>Search Location</h4>
                 <input type="text" id="location-search" placeholder="Enter address or place...">
-                <button id="search-btn" class="action-btn">Search</button>
+                <button id="search-btn" class="action-btn" style="margin-top:8px;">Search</button>
                 <div id="search-results" style="display: none;">
-                    <p class="hint">Select a location:</p>
                     <div id="search-results-list"></div>
                 </div>
+            </div>
+
+            <div id="info">
+                <h4>Instructions</h4>
+                <ul style="padding-left:12px; margin-top:8px;">
+                    <li style="font-size:12px; color:var(--text-muted); margin-bottom:6px;"><strong>Set Origin:</strong>
+                        First set a reference point</li>
+                    <li style="font-size:12px; color:var(--text-muted); margin-bottom:6px;"><strong>Pathway:</strong>
+                        Click on roads to create paths</li>
+                    <li style="font-size:12px; color:var(--text-muted); margin-bottom:6px;"><strong>Entry/Exit:</strong>
+                        Place on existing pathways</li>
+                </ul>
             </div>
         </div>
     </div>
 
     <div id="loading-overlay" style="display: none;">
-        <div class="spinner"></div>
+        <div class="spinner" style="border-top-color: var(--primary)"></div>
         <p>Calculating routes...</p>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/outdoor.js') }}"></script>
     <script>
-        // Initialize everything after outdoor.js is loaded
         document.addEventListener('DOMContentLoaded', function () {
-            console.log('DOMContentLoaded - starting initialization');
             if (typeof initializeOutdoorEditor === 'function') {
                 initializeOutdoorEditor();
-            } else {
-                console.error('initializeOutdoorEditor not found!');
             }
         });
     </script>
