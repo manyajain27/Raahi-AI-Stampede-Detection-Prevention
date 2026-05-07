@@ -1,4 +1,4 @@
-# Rahee - ESP32 Hardware Alerts
+# Raahi - ESP32 Hardware Alerts
 
 This module contains Arduino/C++ code for an ESP32 device designed to provide physical alerts (e.g., lighting up LED bands, buzzers) based on high-density warnings from the backend.
 

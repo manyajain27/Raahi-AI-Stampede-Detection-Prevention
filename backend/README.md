@@ -1,6 +1,6 @@
-# Rahee - Backend Service
+# Raahi - Backend Service
 
-This module handles the core API routing and logic for the Rahee platform. It connects various data pipelines between the simulation and frontend elements.
+This module handles the core API routing and logic for the Raahi platform. It connects various data pipelines between the simulation and frontend elements.
 
 ## Installation & Running
 

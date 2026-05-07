@@ -1,6 +1,6 @@
-﻿# Rahee - Dashboard
+﻿# Raahi - Dashboard
 
-The web-based UI for Rahee. It offers a centralized interface to view live camera feeds, floor plans, and real-time monitoring/simulation results.
+The web-based UI for Raahi. It offers a centralized interface to view live camera feeds, floor plans, and real-time monitoring/simulation results.
 
 ## Installation & Running
 
