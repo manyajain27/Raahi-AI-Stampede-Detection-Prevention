@@ -1,6 +1,6 @@
-﻿# Rahee - Crowd Management & Event Safety
+﻿# Raahi - Crowd Management & Event Safety
 
-Rahee is an AI-powered crowd management platform aiming to predict, simulate, and prevent stampedes in event venues. This modular system uses live feeds to detect densities, hardware alerts (ESP32) for physical warnings, and simulation engines for predictive analysis.
+Raahi is an AI-powered crowd management platform aiming to predict, simulate, and prevent stampedes in event venues. This modular system uses live feeds to detect densities, hardware alerts (ESP32) for physical warnings, and simulation engines for predictive analysis.
 
 ## Project Structure
 The project is built as a set of separate microservices/modules, typically running on their own ports:
