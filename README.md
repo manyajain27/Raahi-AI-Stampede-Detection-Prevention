@@ -5,11 +5,11 @@ Rahee is an AI-powered crowd management platform aiming to predict, simulate, an
 ## Project Structure
 The project is built as a set of separate microservices/modules, typically running on their own ports:
 - **dashboard/**: The main user interface (Next.js server).
-- **ackend/**: General API service.
+- **Backend/**: General API service.
 - **crowd_simulation/**: Simulates crowd pathing and congestion using defined layouts.
-- **loor_planner/**: A tool to create or edit venue layouts.
+- **Floor_planner/**: A tool to create or edit venue layouts.
 - **live_detection/**: Uses YOLO to detect live crowds from a camera feed.
-- **isualizer/**: Visualizes simulation results.
+- **Visualizer/**: Visualizes simulation results.
 - **esp32/**: Hardware code for on-site IoT alerts.
 
 ## How to Run

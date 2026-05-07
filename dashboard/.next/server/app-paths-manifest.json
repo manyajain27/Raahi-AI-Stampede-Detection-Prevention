@@ -1,6 +1,0 @@
-{
-  "/floor-planner/page": "app/floor-planner/page.js",
-  "/page": "app/page.js",
-  "/visualizer/page": "app/visualizer/page.js",
-  "/monitoring/page": "app/monitoring/page.js"
-}
